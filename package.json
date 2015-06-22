@@ -7,7 +7,7 @@
     "url": "git://github.com/foldersjs/folders-http.git"
   },
   "author": "",
-  "license": "(Apache-2.0 OR MIT)",
+  "license": "(MIT)",
   "bugs": {
     "url": "https://github.com/foldersjs/folders-http/issues"
   },
