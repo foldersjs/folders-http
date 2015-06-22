@@ -1,0 +1,22 @@
+{
+  "name": "folders-http",
+  "version": "0.0.3",
+  "description": "Connector from Folders to HTTP",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/foldersjs/folders-http.git"
+  },
+  "author": "",
+  "license": "(Apache-2.0 OR MIT)",
+  "bugs": {
+    "url": "https://github.com/foldersjs/folders-http/issues"
+  },
+  "main": "./src/folders-http",
+  "homepage": "https://github.com/foldersjs/folders-http",
+  "dependencies": {
+    "bluebird": "2.x.x",
+    "postal": "1.x.x",
+    "request": "2.x.x"
+  },
+  "devDependencies": {}
+}
