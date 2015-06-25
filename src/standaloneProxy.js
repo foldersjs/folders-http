@@ -85,7 +85,7 @@ standaloneProxy.prototype.startProxy = function(routeHandler, backend) {
 	this.backend = backend;
 
 	// static file.
-	index("static/index.html", function(err, data) {
+	index(__dirname + '\\static\\index.html', function(err, data) {
 		if(err) {
 			console.log("could not read static index file");
 			return;
@@ -119,7 +119,7 @@ var RouteServer = function(o) {
 
 // static page
 var defaultFriendly = function(request, response) {
-    index("static/index.html", function(err, data) {
+    index(__dirname + '\\static\\index.html', function(err, data) {
     response.setHeader("Content-Type", "text/html");
     response.writeHead(200);
     response.end(data);

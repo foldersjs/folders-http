@@ -252,7 +252,7 @@ ForwardingProxy.prototype.defaultModeHandler = function(conn,response,t){
  *
  */
 var defaultFriendly = function(request, response) {
-	index("static/index.html", function(err, data) {
+	index(__dirname + '\\static\\index.html', function(err, data) {
 		response.setHeader("Content-Type", "text/html");
 		response.writeHead(200);
 		response.end(data);
