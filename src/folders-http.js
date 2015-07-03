@@ -13,8 +13,22 @@ var route = require('./route');
 var FoldersHttp = function (options) {
 
     var self = this;
+	options = options || {};
+	
+	// FIXME:Host should be passed to route.js for creating connections
+	
+	var host = options.host;
+	var cb = options.cb ;
 
-    this.provider = options.provider;
+	this.provider = options.provider ;
+	
+	if (!this.provider){
+		
+		console.log("!Error : no backend provided.");
+		return ;
+		
+	}
+	
 
     var onReady = function (result) {
 
@@ -28,11 +42,11 @@ var FoldersHttp = function (options) {
 
         if (message.type = 'DirectoryListRequest') {
 
-            self.ls(message.data);
+            ls(self,message.data,cb);
 
         } else if (message.type = 'FileRequest') {
 
-            self.cat(message.data);
+            cat(self,message.data,cb);
 
         }
 		
@@ -60,18 +74,32 @@ var FoldersHttp = function (options) {
 
 };
 
+/*
+ * The cb is to  expose the err of 
+ * 'ls' operation
+ *
+ */
+
+var ls = function (o,data,cb) {
 
 
-FoldersHttp.prototype.ls = function (data) {
 
-    var self = this,
+    var self = o,
         headers = {}
-    var path = data.path;
+    var path = data.path;	
     var streamId = data.streamId;
-    self.provider.ls(path, function (result) {
+    self.provider.ls(path, function (err,result) {
+		
+		if(err){
+			console.log(err);
+			return cb(err);
+			
+		}
+		
 
 		// this is working
         route.post(streamId, JSON.stringify(result), headers, self.session.shareId);
+		
 
 
     });
@@ -79,16 +107,30 @@ FoldersHttp.prototype.ls = function (data) {
 
 };
 
-FoldersHttp.prototype.cat = function (data) {
+/*
+ * The cb is to  expose the err of 
+ * 'cat' operation
+ *
+ */
 
-    var self = this;
+var cat = function (o,data,cb) {
+
+    var self = o;
     var path = data.path,
         headers = {};
     var streamId = data.streamId;
 
-    self.provider.cat(path, function (result) {
-        headers['Content-Length'] = result.size;
+    self.provider.cat(path, function (err,result) {
+		
+		if(err){
+			console.log(err);
+			return cb(err);
+			
+		}
+		
+		headers['Content-Length'] = result.size;
         route.post(streamId, result.stream, headers, self.session.shareId);
+		cb(result);
 
     });
 
