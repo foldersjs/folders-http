@@ -6,6 +6,7 @@
  * It will also act as a server, in the absence of an endpoint.
  *
  */
+
 /*
  * This file can be used as a replacement of standaloneProxy.js 
  * This module can be used both in debug mode and live mode
@@ -15,7 +16,7 @@ var compression = require('compression');
 var stubApp = require('./app/stubApp');
 var app = express();
 var Handshake = require('folders/src/handshake.js');
-var bodyParser = require('body-parser');
+var Qs = require('qs');
 
 var HandshakeService = Handshake.HandshakeService;
 
@@ -60,9 +61,10 @@ standaloneServer.prototype.handshakeService = function () {
     self.service = new HandshakeService();
     //console.log('service = ', this.service);
     //FIXME: this should be loaded instead of generated
-    self.keypair = Handshake.createKeypair();
-    self.publicKey = Handshake.stringify(self.keypair.publicKey)
-    console.log('>> Server : Public key: ', self.publicKey);
+    // self.keypair = Handshake.createKeypair();
+    //self.publicKey = Handshake.stringify(self.keypair.publicKey)
+    //console.log('>> Server : Public key: ', self.publicKey);
+	console.log('>> Server : Public key: ', self.service.bob.publicKey);
     console.log('>> Server : Handshake service created');
 
 };
@@ -77,7 +79,8 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     var mode = argv['mode'];
     var log = argv['log'];
     var serverBootStatus = '';
-    //app.use(bodyParser.urlencoded({ extended: true }));
+
+    
     if (compress == 'true') {
 
         // New call to compress content using gzip with default threshhold for 
@@ -104,6 +107,19 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
         serverBootStatus += '>> Server : Logging is off \n ';
     }
+	
+	if (client){
+	
+		app.use(express.static(__dirname + client));
+	
+	}
+	else{
+		
+		app.get('/',function(req,res,next){
+			res.status(301).send("No Client Attached");
+		});
+		
+	}
 
     if ('DEBUG' != mode.toUpperCase()) {
 
@@ -204,8 +220,10 @@ standaloneServer.prototype.routerDebug = function () {
 
             })
 
-        }
+
+        }else{
         res.status(200).json(stub);
+		}
     });
 };
 
@@ -221,6 +239,24 @@ standaloneServer.prototype.routerLive = function () {
     });
 
 
+	
+	/*
+	 * FIXME:implement proper endpoint to 
+	 *  initiate handshake protocol
+	 */
+	app.get('/handshake',function(req,res){
+		
+			
+			var options = fio.createNode(self.service.bob);
+			
+			// sending Bob public key to client
+			res.send(options.body);
+			
+			
+	});
+	
+	
+	
     //FIXME: quick hack to handle PUT request for handshake
     app.put('/*', function (req, res) {
 
@@ -319,6 +355,38 @@ standaloneServer.prototype.routerLive = function () {
         }
 
 
+
+    });
+	
+	app.post('/set_files', function (req, res) {
+
+		var content = '';
+		req.on('data',function(data){
+			
+			content+=data.toString();
+			
+		});
+		
+		
+		req.on('end',function(){
+			
+	
+			var obj = Qs.parse(content);
+			
+			if (obj.shareId.length == 0){
+				
+				//As per old java api  
+				// FIXME:Create a new share or possibly use 
+				// fio.createNode.Not sure
+				
+			}
+			else{
+				
+				// updating old share as per old java api  	
+					
+			}
+			
+		});
 
     });
 
@@ -436,15 +504,7 @@ standaloneServer.prototype.routerLive = function () {
 
 
     });
-
-
-
-    app.post('/set_files', function (req, res) {
-
-
-
-    });
-
+	
 };
 
 var strToArr = function (str) {

@@ -2,12 +2,13 @@
  * (c) Folders.io - All rights reserved.
  * Software intended for internal use only.
  *
- * This is a proxy to assist with debugging.
- * It forwards requests for basic API services to a remote endpoint.
  * It will also act as a server, in the absence of an endpoint.
- *
+ * This file will be deleted in future 
+ * Use ./standaloneServer.js in replacement for this 
  */
 
+ 
+ 
 // Favored utility libraries.
 var stream = require('event-stream');
 var index = require('./util/watchfile'); // Watch a file for changes to the local file, otherwise keep it in memory.
@@ -348,8 +349,6 @@ standaloneProxy.prototype.routeFriendly = function(conn,response){
     
   }
   
-
-
 
 
 module.exports = standaloneProxy;
