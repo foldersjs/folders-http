@@ -149,22 +149,55 @@ standaloneServer.prototype.routerDebug = function () {
     var self = this,
         stub;
     var backend = self.backend;
+	
+	
+	app.use(function(req, res, next) {
+		res.header("Access-Control-Allow-Origin", "*");
+		res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+		
+		next();
+	  });
+	
 
+	
+	/*
     app.get('/dir/:id', function (req, res, next) {
-
+		//console.log('dir', req.params.id);
         stub = stubApp.getStubDir(backend);
         next();
 
     });
+    */
+	
+	app.get('/dir/*', function(req, res, next) {
+		console.log('dir', req.url);
+		
+		//replace prefix?
+		parts = req.url.split('/');
+		console.log('parts', parts); //['', 'dir', 'shareid', path...]
+		
+		//FIXME: string.join?
+		path = '';
+		for (var i= 3; i < parts.length; i++) {
+			path+=parts[i] + "/";
+		}
+		if (path == '') path = '/';
+		console.log('path', path);
+		
+		 stub = function(cb) {
+			backend.ls(path, cb);
+		 }
+		 next();
+	});
 
     app.get('/file/:id', function (req, res, next) {
 
         stub = stubApp.getStubFile(backend);
         next();
-
     });
 
     app.post('/set_files', function (req, res, next) {
+		//FIXME: Return set_files from backend!
         stub = stubApp.getStubSetFiles();
         next();
 
@@ -205,24 +238,32 @@ standaloneServer.prototype.routerDebug = function () {
 	
 	 app.get('/*', function (req, res, next) {
 
-        stub = stubApp.getStubDefault();
+		if (!stub) {
+			stub = stubApp.getStubDefault();
+		}
         next();
 
     });
 
     app.use(function (req, res, next) {
-        // In case  'backend' is used 
-        if (typeof (stub) == "function") {
+        // In case  'backend' is used
+		//res.header("Access-Control-Allow-Origin", "*");
+		//res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+		
+		//console.log('stub', stub);
+		
+        if (typeof (stub) == "function") { //send back only when we have response
+			console.log('stub is function');
+			
             stub(function (err, data) {
-
+				//console.log('stub cb err', err);
+				//console.log('stub cb data', data);
                 var stub = data;
                 res.status(200).json(stub);
-
             })
-
-
-        }else{
-        res.status(200).json(stub);
+        }
+		else {
+			res.status(200).json(stub);
 		}
     });
 };
