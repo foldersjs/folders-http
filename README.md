@@ -29,7 +29,7 @@ Constructor, could pass the special option/param in the config param.
 var FoldersHttp = require('folders-http');
 
 //'Folders'  provide the backend 'ftp' , 'local' etc 
-var Folders = require('Folders');
+var Folders = require('folders');
 
 var ftpConfig = {
 
