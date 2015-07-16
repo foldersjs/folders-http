@@ -6,7 +6,6 @@
  * It will also act as a server, in the absence of an endpoint.
  *
  */
-
 /*
  * This file can be used as a replacement of standaloneProxy.js 
  * This module can be used both in debug mode and live mode
@@ -50,7 +49,7 @@ function shouldCompress(req, res) {
 
 
 var logger = function (req, res, next) {
-	console.log("Timestamp : " +  Date.now() +" "+req.method + " " + req.originalUrl );
+    console.log("Timestamp : " + Date.now() + " " + req.method + " " + req.originalUrl);
     next();
 
 };
@@ -64,7 +63,7 @@ standaloneServer.prototype.handshakeService = function () {
     // self.keypair = Handshake.createKeypair();
     //self.publicKey = Handshake.stringify(self.keypair.publicKey)
     //console.log('>> Server : Public key: ', self.publicKey);
-	console.log('>> Server : Public key: ', self.service.bob.publicKey);
+    //console.log('>> Server : Public key: ', self.service.bob.publicKey);
     console.log('>> Server : Handshake service created');
 
 };
@@ -80,7 +79,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     var log = argv['log'];
     var serverBootStatus = '';
 
-    
+
     if (compress == 'true') {
 
         // New call to compress content using gzip with default threshhold for 
@@ -107,19 +106,18 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
         serverBootStatus += '>> Server : Logging is off \n ';
     }
-	
-	if (client){
-	
-		app.use(express.static(__dirname + client));
-	
-	}
-	else{
-		
-		app.get('/',function(req,res,next){
-			res.status(301).send("No Client Attached");
-		});
-		
-	}
+
+    if (client) {
+
+        app.use(express.static(__dirname + client));
+
+    } else {
+
+        app.get('/', function (req, res, next) {
+            res.status(301).send("No Client Attached");
+        });
+
+    }
 
     if ('DEBUG' != mode.toUpperCase()) {
 
@@ -149,46 +147,47 @@ standaloneServer.prototype.routerDebug = function () {
     var self = this,
         stub;
     var backend = self.backend;
-	
-	
-	app.use(function(req, res, next) {
-		res.header("Access-Control-Allow-Origin", "*");
-		res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-		
-		next();
-	  });
-	
 
-	
-	/*
-    app.get('/dir/:id', function (req, res, next) {
-		//console.log('dir', req.params.id);
-        stub = stubApp.getStubDir(backend);
+
+    app.use(function (req, res, next) {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+
+        next();
+    });
+
+
+
+
+    app.get('/dir/:shareId/*', function (req, res, next) {
+
+        var shareId = req.params.shareId;
+        var path = req.params[0] + '/';
+        stub = function (cb) {
+            backend.ls(path, cb);
+        }
         next();
 
+
+
+
     });
-    */
-	
-	app.get('/dir/*', function(req, res, next) {
-		console.log('dir', req.url);
-		
-		//replace prefix?
-		parts = req.url.split('/');
-		console.log('parts', parts); //['', 'dir', 'shareid', path...]
-		
-		//FIXME: string.join?
-		path = '';
-		for (var i= 3; i < parts.length; i++) {
-			path+=parts[i] + "/";
-		}
-		if (path == '') path = '/';
-		console.log('path', path);
-		
-		 stub = function(cb) {
-			backend.ls(path, cb);
-		 }
-		 next();
-	});
+
+    app.get('/dir/:shareId', function (req, res, next) {
+
+
+
+
+        var shareId = req.params.shareId;
+        var path = '/';
+
+        stub = function (cb) {
+            backend.ls(path, cb);
+        }
+        next();
+    });
+
+
 
     app.get('/file/:id', function (req, res, next) {
 
@@ -197,7 +196,7 @@ standaloneServer.prototype.routerDebug = function () {
     });
 
     app.post('/set_files', function (req, res, next) {
-		//FIXME: Return set_files from backend!
+        //FIXME: Return set_files from backend!
         stub = stubApp.getStubSetFiles();
         next();
 
@@ -235,36 +234,29 @@ standaloneServer.prototype.routerDebug = function () {
         next();
 
     });
-	
-	 app.get('/*', function (req, res, next) {
 
-		if (!stub) {
-			stub = stubApp.getStubDefault();
-		}
-        next();
 
-    });
+
 
     app.use(function (req, res, next) {
         // In case  'backend' is used
-		//res.header("Access-Control-Allow-Origin", "*");
-		//res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-		
-		//console.log('stub', stub);
-		
+        //res.header("Access-Control-Allow-Origin", "*");
+        //res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+
+        //console.log('stub', stub);
+
         if (typeof (stub) == "function") { //send back only when we have response
-			console.log('stub is function');
-			
+            console.log('stub is function');
+
             stub(function (err, data) {
-				//console.log('stub cb err', err);
-				//console.log('stub cb data', data);
+                //console.log('stub cb err', err);
+                //console.log('stub cb data', data);
                 var stub = data;
                 res.status(200).json(stub);
             })
+        } else {
+            res.status(200).json(stub);
         }
-		else {
-			res.status(200).json(stub);
-		}
     });
 };
 
@@ -280,24 +272,24 @@ standaloneServer.prototype.routerLive = function () {
     });
 
 
-	
-	/*
-	 * FIXME:implement proper endpoint to 
-	 *  initiate handshake protocol
-	 */
-	app.get('/handshake',function(req,res){
-		
-			
-			var options = fio.createNode(self.service.bob);
-			
-			// sending Bob public key to client
-			res.send(options.body);
-			
-			
-	});
-	
-	
-	
+
+    /*
+     * FIXME:implement proper endpoint to 
+     *  initiate handshake protocol
+     */
+    app.get('/handshake', function (req, res) {
+
+
+        var options = fio.createNode(self.service.bob);
+
+        // sending Bob public key to client
+        res.send(options.body);
+
+
+    });
+
+
+
     //FIXME: quick hack to handle PUT request for handshake
     app.put('/*', function (req, res) {
 
@@ -398,36 +390,35 @@ standaloneServer.prototype.routerLive = function () {
 
 
     });
-	
-	app.post('/set_files', function (req, res) {
 
-		var content = '';
-		req.on('data',function(data){
-			
-			content+=data.toString();
-			
-		});
-		
-		
-		req.on('end',function(){
-			
-	
-			var obj = Qs.parse(content);
-			
-			if (obj.shareId.length == 0){
-				
-				//As per old java api  
-				// FIXME:Create a new share or possibly use 
-				// fio.createNode.Not sure
-				
-			}
-			else{
-				
-				// updating old share as per old java api  	
-					
-			}
-			
-		});
+    app.post('/set_files', function (req, res) {
+
+        var content = '';
+        req.on('data', function (data) {
+
+            content += data.toString();
+
+        });
+
+
+        req.on('end', function () {
+
+
+            var obj = Qs.parse(content);
+
+            if (obj.shareId.length == 0) {
+
+                //As per old java api  
+                // FIXME:Create a new share or possibly use 
+                // fio.createNode.Not sure
+
+            } else {
+
+                // updating old share as per old java api  	
+
+            }
+
+        });
 
     });
 
@@ -545,7 +536,7 @@ standaloneServer.prototype.routerLive = function () {
 
 
     });
-	
+
 };
 
 var strToArr = function (str) {
