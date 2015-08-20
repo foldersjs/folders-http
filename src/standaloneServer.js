@@ -14,6 +14,16 @@ var express = require('express');
 var compression = require('compression');
 var stubApp = require('./app/stubApp');
 var app = express();
+
+//Allow CORS when withCredentials = true in client
+//https://github.com/expressjs/cors
+var cors = require('cors');
+var corsOptions = {
+  origin: 'http://localhost:8000',
+  credentials: true
+};
+
+
 var Handshake = require('folders/src/handshake.js');
 var Qs = require('qs');
 
@@ -93,7 +103,9 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         serverBootStatus += '>> Server : Compression is Off \n';
     }
 
-
+	console.log('using CORS', corsOptions);
+	app.use(cors(corsOptions));
+	
     app.use(express.static(__dirname + client));
 
     if (log == 'true') {
@@ -149,15 +161,15 @@ standaloneServer.prototype.routerDebug = function () {
     var backend = self.backend;
 
 
+	//haipt: replaced this by cors module
+	/*
     app.use(function (req, res, next) {
+		
         res.header("Access-Control-Allow-Origin", "*");
         res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-
         next();
     });
-
-
-
+    */
 
     app.get('/dir/:shareId/*', function (req, res, next) {
 
@@ -174,10 +186,6 @@ standaloneServer.prototype.routerDebug = function () {
     });
 
     app.get('/dir/:shareId', function (req, res, next) {
-
-
-
-
         var shareId = req.params.shareId;
         var path = '/';
 
@@ -214,8 +222,8 @@ standaloneServer.prototype.routerDebug = function () {
         next();
     });
 
-    app.get('/json', function (req, res, next) {
-
+    app.get('/json', cors(corsOptions), function (req, res, next) {
+		console.log('/json cors', corsOptions);
         stub = stubApp.getStubJson();
         next();
 

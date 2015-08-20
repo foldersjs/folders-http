@@ -28,7 +28,8 @@
     "promise": "^7.0.3",
     "qs": "^4.0.0",
     "request": "2.x.x",
-    "when": "^3.7.3"
+    "when": "^3.7.3",
+    "cors": "2.7.1"
   },
   "devDependencies": {}
 }
