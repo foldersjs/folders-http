@@ -121,7 +121,8 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
     if (client) {
 
-        app.use(express.static(__dirname + client));
+        app.use(express.static(require('path').normalize(client)));
+		
 
     } else {
 
