@@ -172,6 +172,7 @@ standaloneServer.prototype.routerDebug = function () {
     */
 
     app.get('/dir/:shareId/*', function (req, res, next) {
+		console.log('routerDebug /dir/:shareId/*');
 
         var shareId = req.params.shareId;
         var path = req.params[0] + '/';
@@ -179,12 +180,9 @@ standaloneServer.prototype.routerDebug = function () {
             backend.ls(path, cb);
         }
         next();
-
-
-
-
     });
 
+	
     app.get('/dir/:shareId', function (req, res, next) {
         var shareId = req.params.shareId;
         var path = '/';
@@ -194,7 +192,6 @@ standaloneServer.prototype.routerDebug = function () {
         }
         next();
     });
-
 
 
     app.get('/file/:id', function (req, res, next) {
@@ -222,8 +219,7 @@ standaloneServer.prototype.routerDebug = function () {
         next();
     });
 
-    app.get('/json', cors(corsOptions), function (req, res, next) {
-		console.log('/json cors', corsOptions);
+    app.get('/json', function (req, res, next) {
         stub = stubApp.getStubJson();
         next();
 
