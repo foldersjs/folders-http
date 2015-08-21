@@ -173,12 +173,17 @@ standaloneServer.prototype.routerDebug = function () {
     */
 
     app.get('/dir/:shareId/*', function (req, res, next) {
-		console.log('routerDebug /dir/:shareId/*');
 
         var shareId = req.params.shareId;
+		// FIXME : appending of extra slash at end of path should be taken
+		// care at backend itself 
         var path = req.params[0] + '/';
-        stub = function (cb) {
-            backend.ls(path, cb);
+        stub = function () {
+            backend.ls(path, function (err, data) {
+       
+                var stub = data;
+                res.status(200).json(stub);
+            });
         }
         next();
     });
@@ -188,16 +193,35 @@ standaloneServer.prototype.routerDebug = function () {
         var shareId = req.params.shareId;
         var path = '/';
 
-        stub = function (cb) {
-            backend.ls(path, cb);
+        stub = function () {
+            backend.ls(path, function (err, data) {
+             
+                var stub = data;
+                res.status(200).json(stub);
+            });
         }
         next();
     });
 
 
-    app.get('/file/:id', function (req, res, next) {
+    app.get('/file/:shareId/*', function (req, res, next) {
 
-        stub = stubApp.getStubFile(backend);
+		var shareId = req.params.shareId;
+        // No extra slash at end of path in case of files
+		// should be taken care at module itself 
+		var path = req.params[0];
+		stub = function(){
+		
+			backend.cat(path,function(err,result){
+				
+				 res.setHeader('X-File-Name', result.name);
+				 res.setHeader('X-File-Size', result.size);
+				 res.setHeader('Content-Length', result.size);
+				 result.stream.pipe(res);
+				 
+			
+			});
+		}
         next();
     });
 
@@ -241,24 +265,15 @@ standaloneServer.prototype.routerDebug = function () {
     });
 
 
-
-
     app.use(function (req, res, next) {
         // In case  'backend' is used
         //res.header("Access-Control-Allow-Origin", "*");
         //res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
 
-        //console.log('stub', stub);
 
         if (typeof (stub) == "function") { //send back only when we have response
-            console.log('stub is function');
 
-            stub(function (err, data) {
-                //console.log('stub cb err', err);
-                //console.log('stub cb data', data);
-                var stub = data;
-                res.status(200).json(stub);
-            })
+            stub();
         } else {
             res.status(200).json(stub);
         }
@@ -301,8 +316,6 @@ standaloneServer.prototype.routerLive = function () {
         var uri = req.path;
         var content = '';
 
-        console.log(content);
-
         req.on('data', function (data) {
 
             content += data.toString();
@@ -322,7 +335,6 @@ standaloneServer.prototype.routerLive = function () {
             content = Handshake.decodeHexString(content);
             //convert public key back to Uint8Array
 
-
             var resp = self.service.node(endpoint, content);
             if (resp) {
                 console.log('request succeeded!')
@@ -341,8 +353,6 @@ standaloneServer.prototype.routerLive = function () {
         });
 
         return;
-
-
 
     });
 
@@ -391,7 +401,6 @@ standaloneServer.prototype.routerLive = function () {
         } else {
             console.log("not our request");
         }
-
 
 
     });
@@ -502,43 +511,27 @@ standaloneServer.prototype.routerLive = function () {
 	*/
     app.get('/json', function (req, res) {
 
-
-
-
     });
 
     app.get('get_share', function (req, res) {
 
-
     });
 
     app.get('/file/:id', function (req, res) {
-
-
-
 
     });
 
 
     app.get('/terms', function (req, res) {
 
-
-
-
     });
 
 
     app.get('/dir/:id', function (req, res) {
 
-
-
-
     });
 
     app.get('/press', function (req, res) {
-
-
-
 
     });
 
@@ -551,7 +544,5 @@ var strToArr = function (str) {
     }
     return new Uint8Array(arr);
 }
-
-
 
 module.exports = standaloneServer;
