@@ -83,7 +83,7 @@ exports.getStubSignalPoll = function(){
 	
 };
 
-exports.getSubSession = function(){
+exports.getStubSession = function(){
 	
 	
 	 var stubShare = "{}";
@@ -176,11 +176,3 @@ exports.getStubDefault = function(){
 	var stubShare = {"insert":"here"};
 	return stubShare;
 };
-
-  
-    
-
- 
-
-
-
