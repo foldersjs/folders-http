@@ -83,10 +83,20 @@ exports.getStubSignalPoll = function(){
 	
 };
 
-exports.getStubSession = function(){
+exports.getStubSession = function(res){
 	
-	
-	 var stubShare = "{}";
+	 var stubShare = {
+	 	"users":[{
+	 		"availableStorage":2146702817,
+	 		"availableBandwidth":10736637409,
+	 		"plan":"REGISTERED",
+	 		"email":"test@gmail.com",
+	 		"userName":"testuser",
+	 		"fullName":"testuser testuser"
+	 	}],
+	 	"success":true,
+	 	"mainUser":"testuser"
+	 };
 	 return stubShare;
 	
 };

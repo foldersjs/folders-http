@@ -19,13 +19,14 @@ var app = express();
 //https://github.com/expressjs/cors
 var cors = require('cors');
 var corsOptions = {
-  origin: 'http://localhost:8000',
-  credentials: true
+origin: ['http://localhost:8000', 'http://localhost:9999','http://45.55.145.52:8000'],
+credentials: true
 };
 
 
 var Handshake = require('folders/src/handshake.js');
 var Qs = require('qs');
+var mime = require('mime');
 
 var HandshakeService = Handshake.HandshakeService;
 
@@ -147,9 +148,9 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
     var server = app.listen(port, function () {
 
-        var host = server.address().address;
-        var port = server.address().port;
-        serverBootStatus = '>> Server : Listening at http://' + host + ":" + port + '\n' + serverBootStatus;
+        self.host = server.address().address;
+        self.port = server.address().port;
+        serverBootStatus = '>> Server : Listening at http://' + self.host + ":" + self.port + '\n' + serverBootStatus;
         console.log(serverBootStatus);
     });
 
@@ -195,7 +196,10 @@ standaloneServer.prototype.routerDebug = function () {
 
         stub = function () {
             backend.ls(path, function (err, data) {
-             
+             	if (err){
+					res.status(500).send({ error: err });
+					
+				}
                 var stub = data;
                 res.status(200).json(stub);
             });
@@ -211,19 +215,104 @@ standaloneServer.prototype.routerDebug = function () {
 		// should be taken care at module itself 
 		var path = req.params[0];
 		stub = function(){
-		
+			
 			backend.cat(path,function(err,result){
+				
+				if (err){
+					res.status(500).send({ error: err });
+					
+				}	
 				
 				 res.setHeader('X-File-Name', result.name);
 				 res.setHeader('X-File-Size', result.size);
 				 res.setHeader('Content-Length', result.size);
+				 res.setHeader('Content-disposition', 'attachment; filename=' + result.name);
+				 res.setHeader('Content-type', mime.lookup(result.name));	
 				 result.stream.pipe(res);
 				 
 			
 			});
 		}
-        next();
+		next();
+        
+		
     });
+
+    app.post('/signin',function(req,res){
+
+        var content='';
+
+        req.on('data',function(data){
+             content+=data;   
+        });
+
+        req.on('end',function(){
+            var obj = Qs.parse(content);
+            var username = obj.username;
+            var password = obj.password;
+            var keep     = obj.keep;  
+            res.status(200).json({"success": true});
+        });
+
+    });
+
+    app.options('/manually_upload_file',function(req,res){
+
+        var shareId = req.query.shareId;
+        var fileId  = req.query.fileId; 
+        res.status(200).end();       
+    });
+	
+	app.post('/manually_upload_file',function(req,res){
+        var shareId = req.query.shareId;
+        var fileId  = req.query.fileId;
+        var match = "web everything:web network:"+shareId+"/";
+        var path = fileId.substr(match.length,fileId.length);
+        
+		stub = function(){
+		
+			backend.write(path,req,function(err){
+					
+				if (err){
+					res.status(500).send({ error: err });
+					
+				}else{
+					res.status(200).json({'success':true});
+				}
+			})
+		}
+		
+	});
+	
+	app.options('/upload_file',function(req,res){
+
+        var fileId = req.query.fileId;
+        res.status(200).end();       
+    });
+	
+	app.post('/upload_file',function(req,res,next){
+	
+		var fileId = req.query.fileId;
+		if (fileId[0]!= '/')
+			fileId = '/' + fileId;
+       
+        stub = function(){
+			var path = fileId;
+			
+			backend.write(path,req,function(err){
+				
+				if (err){
+					res.status(500).send({ error: err });
+					
+				}else{
+					res.status(200).json({'success':true});
+				}
+			})
+		}
+		
+		next();
+		
+	});
 
     app.post('/set_files', function (req, res, next) {
         //FIXME: Return set_files from backend!
@@ -240,7 +329,12 @@ standaloneServer.prototype.routerDebug = function () {
     });
 
     app.get('/session', function (req, res, next) {
-        stub = stubApp.getStubSession();
+        stub = stubApp.getStubSession(res);
+        next();
+    });
+
+     app.get('/session/', function (req, res, next) {
+        stub = stubApp.getStubSession(res);
         next();
     });
 
