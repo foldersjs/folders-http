@@ -19,8 +19,8 @@ var app = express();
 //https://github.com/expressjs/cors
 var cors = require('cors');
 var corsOptions = {
-origin: ['http://localhost:8000', 'http://localhost:9999','http://45.55.145.52:8000'],
-credentials: true
+    origin: ['http://localhost:8000', 'http://localhost:9999', 'http://45.55.145.52:8000'],
+    credentials: true
 };
 
 
@@ -104,9 +104,9 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         serverBootStatus += '>> Server : Compression is Off \n';
     }
 
-	console.log('using CORS', corsOptions);
-	app.use(cors(corsOptions));
-	
+    console.log('using CORS', corsOptions);
+    app.use(cors(corsOptions));
+
     app.use(express.static(__dirname + client));
 
     if (log == 'true') {
@@ -123,7 +123,8 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     if (client) {
 
         app.use(express.static(require('path').normalize(client)));
-		
+
+
 
     } else {
 
@@ -163,8 +164,9 @@ standaloneServer.prototype.routerDebug = function () {
     var backend = self.backend;
 
 
-	//haipt: replaced this by cors module
-	/*
+    //haipt: replaced this by cors module
+    /*
+
     app.use(function (req, res, next) {
 		
         res.header("Access-Control-Allow-Origin", "*");
@@ -176,12 +178,13 @@ standaloneServer.prototype.routerDebug = function () {
     app.get('/dir/:shareId/*', function (req, res, next) {
 
         var shareId = req.params.shareId;
-		// FIXME : appending of extra slash at end of path should be taken
-		// care at backend itself 
+        // FIXME : appending of extra slash at end of path should be taken
+        // care at backend itself 
         var path = req.params[0] + '/';
         stub = function () {
             backend.ls(path, function (err, data) {
-       
+
+
                 var stub = data;
                 res.status(200).json(stub);
             });
@@ -189,17 +192,23 @@ standaloneServer.prototype.routerDebug = function () {
         next();
     });
 
-	
+
+
     app.get('/dir/:shareId', function (req, res, next) {
         var shareId = req.params.shareId;
         var path = '/';
 
         stub = function () {
             backend.ls(path, function (err, data) {
-             	if (err){
-					res.status(500).send({ error: err });
-					
-				}
+                if (err) {
+
+                    res.status(500).send({
+                        error: err
+                    });
+
+                }
+
+
                 var stub = data;
                 res.status(200).json(stub);
             });
@@ -210,109 +219,171 @@ standaloneServer.prototype.routerDebug = function () {
 
     app.get('/file/:shareId/*', function (req, res, next) {
 
-		var shareId = req.params.shareId;
+        var shareId = req.params.shareId;
         // No extra slash at end of path in case of files
-		// should be taken care at module itself 
-		var path = req.params[0];
-		stub = function(){
-			
-			backend.cat(path,function(err,result){
-				
-				if (err){
-					res.status(500).send({ error: err });
-					
-				}	
-				
-				 res.setHeader('X-File-Name', result.name);
-				 res.setHeader('X-File-Size', result.size);
-				 res.setHeader('Content-Length', result.size);
-				 res.setHeader('Content-disposition', 'attachment; filename=' + result.name);
-				 res.setHeader('Content-type', mime.lookup(result.name));	
-				 result.stream.pipe(res);
-				 
-			
-			});
-		}
-		next();
-        
-		
+        // should be taken care at module itself 
+        var path = req.params[0];
+        stub = function () {
+
+
+            backend.cat(path, function (err, result) {
+
+                if (err) {
+
+
+                    res.status(500).send({
+                        error: err
+                    });
+
+                } else {
+
+                    res.setHeader('X-File-Name', result.name);
+                    res.setHeader('X-File-Size', result.size);
+                    res.setHeader('Content-Length', result.size);
+                    res.setHeader('Content-disposition', 'attachment; filename=' + result.name);
+                    res.setHeader('Content-type', mime.lookup(result.name));
+                    result.stream.pipe(res);
+                }
+
+            });
+        }
+
+        next();
+
     });
 
-    app.post('/signin',function(req,res){
+    app.post('/signin', function (req, res) {
 
-        var content='';
+        var content = '';
 
-        req.on('data',function(data){
-             content+=data;   
+        req.on('data', function (data) {
+            content += data;
         });
 
-        req.on('end',function(){
+        req.on('end', function () {
             var obj = Qs.parse(content);
             var username = obj.username;
             var password = obj.password;
-            var keep     = obj.keep;  
-            res.status(200).json({"success": true});
+            var keep = obj.keep;
+            res.status(200).json({
+                "success": true
+            });
         });
 
     });
 
-    app.options('/manually_upload_file',function(req,res){
+    app.options('/manually_upload_file', function (req, res) {
 
         var shareId = req.query.shareId;
-        var fileId  = req.query.fileId; 
-        res.status(200).end();       
+        var fileId = req.query.fileId;
+        res.status(200).end();
     });
-	
-	app.post('/manually_upload_file',function(req,res){
+
+
+    app.post('/manually_upload_file', function (req, res) {
         var shareId = req.query.shareId;
-        var fileId  = req.query.fileId;
-        var match = "web everything:web network:"+shareId+"/";
-        var path = fileId.substr(match.length,fileId.length);
-        
-		stub = function(){
-		
-			backend.write(path,req,function(err){
-					
-				if (err){
-					res.status(500).send({ error: err });
-					
-				}else{
-					res.status(200).json({'success':true});
-				}
-			})
-		}
-		
-	});
-	
-	app.options('/upload_file',function(req,res){
+        var fileId = req.query.fileId;
+        var match = "web everything:web network:" + shareId + "/";
+        var path = fileId.substr(match.length, fileId.length);
+
+
+        stub = function () {
+
+
+            backend.write(path, req, function (err) {
+
+                if (err) {
+
+
+                    res.status(500).send({
+                        error: err
+                    });
+
+                } else {
+
+
+                    res.status(200).json({
+                        'success': true
+                    });
+                }
+            })
+        }
+
+    });
+
+    app.options('/upload_file', function (req, res) {
 
         var fileId = req.query.fileId;
-        res.status(200).end();       
+        res.status(200).end();
     });
-	
-	app.post('/upload_file',function(req,res,next){
-	
-		var fileId = req.query.fileId;
-		if (fileId[0]!= '/')
-			fileId = '/' + fileId;
-       
-        stub = function(){
-			var path = fileId;
-			
-			backend.write(path,req,function(err){
-				
-				if (err){
-					res.status(500).send({ error: err });
-					
-				}else{
-					res.status(200).json({'success':true});
-				}
-			})
-		}
-		
-		next();
-		
-	});
+
+
+    app.post('/upload_file', function (req, res, next) {
+
+        var fileId = req.query.fileId;
+        if (fileId[0] != '/')
+            fileId = '/' + fileId;
+
+        stub = function () {
+            var path = fileId;
+
+            backend.write(path, req, function (err) {
+
+                if (err) {
+                    res.status(500).send({
+                        error: err
+                    });
+
+                } else {
+                    res.status(200).json({
+                        'success': true
+                    });
+                }
+            })
+        }
+
+        next();
+
+    });
+
+    app.post('/clear_file', function (req, res, next) {
+
+        stub = function () {
+            var content = '';
+
+            req.on('data', function (data) {
+                content += data;
+            });
+
+            req.on('end', function () {
+                var obj = Qs.parse(content);
+                var shareId = obj.shareId;
+                var fileId = obj.fileId;
+
+                backend.unlink(fileId, function (err, data) {
+
+                    if (err) {
+
+                        res.status(500).json({
+                            "success": false
+                        });
+
+                    } else {
+
+                        res.status(200).json({
+                            "success": true
+                        });
+                    }
+                });
+
+
+            });
+        }
+        next();
+    });
+
+
+
 
     app.post('/set_files', function (req, res, next) {
         //FIXME: Return set_files from backend!
@@ -333,7 +404,7 @@ standaloneServer.prototype.routerDebug = function () {
         next();
     });
 
-     app.get('/session/', function (req, res, next) {
+    app.get('/session/', function (req, res, next) {
         stub = stubApp.getStubSession(res);
         next();
     });
@@ -637,6 +708,6 @@ var strToArr = function (str) {
         arr.push(str.charCodeAt(i));
     }
     return new Uint8Array(arr);
-}
+};
 
 module.exports = standaloneServer;
