@@ -23,12 +23,18 @@ var corsOptions = {
     credentials: true
 };
 
+var stats = {
+    bytes_in: 0,
+    bytes_out: 0,
+    files: []
+};
 
 var Handshake = require('folders/src/handshake.js');
 var Qs = require('qs');
 var mime = require('mime');
 
 var HandshakeService = Handshake.HandshakeService;
+
 
 var standaloneServer = function (argv, backend) {
     // a single static backend.
@@ -85,6 +91,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     argv = argv || {};
     var client = argv['client'];
     var port = argv['listen'];
+    var host = argv['host'];
     var compress = argv['compress'];
     var mode = argv['mode'];
     var log = argv['log'];
@@ -147,7 +154,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
     }
 
-    var server = app.listen(port, function () {
+    var server = app.listen(port, host, function () {
 
         self.host = server.address().address;
         self.port = server.address().port;
@@ -208,7 +215,6 @@ standaloneServer.prototype.routerDebug = function () {
 
                 }
 
-
                 var stub = data;
                 res.status(200).json(stub);
             });
@@ -235,8 +241,17 @@ standaloneServer.prototype.routerDebug = function () {
                         error: err
                     });
 
-                } else {
 
+
+
+                } else {
+                    stats.bytes_out += parseInt(result.size);
+                    stats.files.push({
+
+                        'download': require('path').basename(path),
+                        'datetime': Date.now(),
+                        'size': result.size
+                    });
                     res.setHeader('X-File-Name', result.name);
                     res.setHeader('X-File-Size', result.size);
                     res.setHeader('Content-Length', result.size);
@@ -247,8 +262,9 @@ standaloneServer.prototype.routerDebug = function () {
 
             });
         }
-
         next();
+
+
 
     });
 
@@ -285,6 +301,7 @@ standaloneServer.prototype.routerDebug = function () {
         var fileId = req.query.fileId;
         var match = "web everything:web network:" + shareId + "/";
         var path = fileId.substr(match.length, fileId.length);
+        var size = parseInt(req.headers['content-length']);
 
 
         stub = function () {
@@ -300,6 +317,13 @@ standaloneServer.prototype.routerDebug = function () {
                     });
 
                 } else {
+                    stats.bytes_in += size;
+                    stats.files.push({
+
+                        'upload': require('path').basename(path),
+                        'datetime': Date.now(),
+                        'size': size
+                    });
 
 
                     res.status(200).json({
@@ -323,6 +347,7 @@ standaloneServer.prototype.routerDebug = function () {
         var fileId = req.query.fileId;
         if (fileId[0] != '/')
             fileId = '/' + fileId;
+        var size = parseInt(req.headers['content-length']);
 
         stub = function () {
             var path = fileId;
@@ -335,6 +360,13 @@ standaloneServer.prototype.routerDebug = function () {
                     });
 
                 } else {
+                    stats.bytes_in += size;
+                    stats.files.push({
+
+                        'upload': require('path').basename(path),
+                        'datetime': Date.now(),
+                        'size': size
+                    });
                     res.status(200).json({
                         'success': true
                     });
@@ -388,6 +420,15 @@ standaloneServer.prototype.routerDebug = function () {
     app.post('/set_files', function (req, res, next) {
         //FIXME: Return set_files from backend!
         stub = stubApp.getStubSetFiles();
+        next();
+
+    });
+
+    app.get('/stats', function (req, res, next) {
+
+        stub = function () {
+            res.status(200).json(stats);
+        }
         next();
 
     });
@@ -708,6 +749,7 @@ var strToArr = function (str) {
         arr.push(str.charCodeAt(i));
     }
     return new Uint8Array(arr);
-};
+}
+
 
 module.exports = standaloneServer;
