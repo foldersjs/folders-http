@@ -11,6 +11,8 @@
  * This module can be used both in debug mode and live mode
  */
 var express = require('express');
+var request = require('request');
+var publicIp = require('public-ip');
 var compression = require('compression');
 var stubApp = require('./app/stubApp');
 var app = express();
@@ -28,6 +30,7 @@ var stats = {
     bytes_out: 0,
     files: []
 };
+var CLIENT_URL = 'http://45.55.145.52:8000';
 
 var Handshake = require('folders/src/handshake.js');
 var Qs = require('qs');
@@ -85,6 +88,48 @@ standaloneServer.prototype.handshakeService = function () {
 
 };
 
+/*
+ *
+ *
+ */
+standaloneServer.prototype.mountInstance = function (cb) {
+    var self = this;
+    if (CLIENT_URL) {
+        publicIp.v4(function (err, ip) {
+
+            var host = process.env.NODE_ENV == 'production' ? ip : self.host;
+            var port = self.port;
+            var uri = CLIENT_URL + '/mount?instance=' + host + '&port=' + port;
+            require('http').get(uri, function (res) {
+                var content = '';
+                res.on('data', function (d) {
+                    content += d.toString();
+                });
+
+
+                res.on('end', function () {
+                    self.instanceId = JSON.parse(content).instance_id;
+                    var instanceUrl = CLIENT_URL + '/instance/' + self.instanceId;
+                    console.log("Browse files here -->" + instanceUrl);
+                    return cb();
+                });
+
+                res.on('err', function (err) {
+
+                    return cb(err);
+                });
+
+
+            });
+
+
+        });
+
+
+    } else {
+        return cb();
+    }
+};
 
 standaloneServer.prototype.configureAndStart = function (argv) {
     var self = this;
@@ -165,6 +210,40 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 };
 
 
+standaloneServer.prototype.updateStats = function (cb) {
+    var instanceId = this.instanceId;
+
+    var body = stats;
+    var headers = {
+
+        'Content-type': 'application/json'
+    };
+
+    var options = {
+
+        uri: CLIENT_URL + '/instance/' + instanceId + '/update_stats',
+        method: 'POST',
+        headers: headers,
+        json: true,
+        body: body
+    };
+
+    request(options, function (err, m, q) {
+        if (err) {
+
+            console.log("stats not updated");
+            console.log(stats);
+        } else if (q.success == false) {
+
+            console.log("error" + q.error);
+        } else {
+            console.log(q);
+        }
+
+    });
+
+};
+
 standaloneServer.prototype.routerDebug = function () {
     var self = this,
         stub;
@@ -241,9 +320,6 @@ standaloneServer.prototype.routerDebug = function () {
                         error: err
                     });
 
-
-
-
                 } else {
                     stats.bytes_out += parseInt(result.size);
                     stats.files.push({
@@ -252,6 +328,7 @@ standaloneServer.prototype.routerDebug = function () {
                         'datetime': Date.now(),
                         'size': result.size
                     });
+                    self.updateStats();
                     res.setHeader('X-File-Name', result.name);
                     res.setHeader('X-File-Size', result.size);
                     res.setHeader('Content-Length', result.size);
@@ -263,9 +340,6 @@ standaloneServer.prototype.routerDebug = function () {
             });
         }
         next();
-
-
-
     });
 
     app.post('/signin', function (req, res) {
@@ -325,6 +399,7 @@ standaloneServer.prototype.routerDebug = function () {
                         'size': size
                     });
 
+                    self.updateStats();
 
                     res.status(200).json({
                         'success': true
@@ -343,6 +418,7 @@ standaloneServer.prototype.routerDebug = function () {
 
 
     app.post('/upload_file', function (req, res, next) {
+        console.log("got it");
 
         var fileId = req.query.fileId;
         if (fileId[0] != '/')
@@ -367,6 +443,7 @@ standaloneServer.prototype.routerDebug = function () {
                         'datetime': Date.now(),
                         'size': size
                     });
+                    self.updateStats();
                     res.status(200).json({
                         'success': true
                     });
@@ -413,9 +490,6 @@ standaloneServer.prototype.routerDebug = function () {
         }
         next();
     });
-
-
-
 
     app.post('/set_files', function (req, res, next) {
         //FIXME: Return set_files from backend!
@@ -513,8 +587,6 @@ standaloneServer.prototype.routerLive = function () {
 
 
     });
-
-
 
     //FIXME: quick hack to handle PUT request for handshake
     app.put('/*', function (req, res) {
