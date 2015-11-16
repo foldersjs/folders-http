@@ -30,7 +30,7 @@ var stats = {
     bytes_out: 0,
     files: []
 };
-var CLIENT_URL = 'http://45.55.145.52:8000';
+
 
 var Handshake = require('folders/src/handshake.js');
 var Qs = require('qs');
@@ -92,14 +92,17 @@ standaloneServer.prototype.handshakeService = function () {
  *
  *
  */
-standaloneServer.prototype.mountInstance = function (cb) {
+standaloneServer.prototype.mountInstance = function (cb,clientUri) {
     var self = this;
-    if (CLIENT_URL) {
+	self.clientUri = clientUri;
+    if (self.clientUri) {
+		
         publicIp.v4(function (err, ip) {
 
-            var host = process.env.NODE_ENV == 'production' ? ip : self.host;
+            var host = process.env.HOST == 'remote' ? ip : self.host;
             var port = self.port;
-            var uri = CLIENT_URL + '/mount?instance=' + host + '&port=' + port;
+            var uri = self.clientUri + '/mount?instance=' + host + '&port=' + port;
+			console.log(uri);
             require('http').get(uri, function (res) {
                 var content = '';
                 res.on('data', function (d) {
@@ -109,7 +112,7 @@ standaloneServer.prototype.mountInstance = function (cb) {
 
                 res.on('end', function () {
                     self.instanceId = JSON.parse(content).instance_id;
-                    var instanceUrl = CLIENT_URL + '/instance/' + self.instanceId;
+                    var instanceUrl = self.clientUri + '/instance/' + self.instanceId;
                     console.log("Browse files here -->" + instanceUrl);
                     return cb();
                 });
@@ -221,7 +224,7 @@ standaloneServer.prototype.updateStats = function (cb) {
 
     var options = {
 
-        uri: CLIENT_URL + '/instance/' + instanceId + '/update_stats',
+        uri: self.clientUri + '/instance/' + instanceId + '/update_stats',
         method: 'POST',
         headers: headers,
         json: true,
