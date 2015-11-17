@@ -101,7 +101,7 @@ standaloneServer.prototype.mountInstance = function (cb,clientUri) {
 
             var host = process.env.HOST == 'remote' ? ip : self.host;
             var port = self.port;
-            var uri = self.clientUri + '/mount?instance=' + host + '&port=' + port;
+            var uri = self.clientUri + '/mount?instance=' + host + '&port=' + port + '&secured=false';
 			console.log(uri);
             require('http').get(uri, function (res) {
                 var content = '';
