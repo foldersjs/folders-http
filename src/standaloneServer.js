@@ -95,11 +95,15 @@ standaloneServer.prototype.handshakeService = function () {
 standaloneServer.prototype.mountInstance = function (cb,clientUri) {
     var self = this;
 	self.clientUri = clientUri;
+	var addresses = findLocalIps();
+	var localhost = addresses.length >= 1 ? addresses[0]:self.host;
+	
+	
     if (self.clientUri) {
 		
         publicIp.v4(function (err, ip) {
 
-            var host = process.env.HOST == 'remote' ? ip : self.host;
+            var host = process.env.HOST == 'remote' ? ip : localhost;
             var port = self.port;
             var uri = self.clientUri + '/mount?instance=' + host + '&port=' + port + '&secured=false';
 			console.log(uri);
@@ -215,6 +219,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
 standaloneServer.prototype.updateStats = function (cb) {
     var instanceId = this.instanceId;
+	var self = this ;
 
     var body = stats;
     var headers = {
@@ -824,7 +829,25 @@ var strToArr = function (str) {
         arr.push(str.charCodeAt(i));
     }
     return new Uint8Array(arr);
-}
+};
 
+var findLocalIps = function(){
+
+	var os = require('os');
+
+	var interfaces = os.networkInterfaces();
+	var addresses = [];
+	for (var k in interfaces) {
+    	for (var k2 in interfaces[k]) {
+        	var address = interfaces[k][k2];
+        	if (address.family === 'IPv4' && !address.internal) {
+            	addresses.push(address.address);
+       		 }
+    	}
+	}
+
+return addresses;
+	
+};
 
 module.exports = standaloneServer;
