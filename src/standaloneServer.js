@@ -30,7 +30,7 @@ var stats = {
     bytes_out: 0,
     files: []
 };
-var CLIENT_URL = 'http://45.55.145.52:8000';
+
 
 var Handshake = require('folders/src/handshake.js');
 var Qs = require('qs');
@@ -42,9 +42,10 @@ var HandshakeService = Handshake.HandshakeService;
 var standaloneServer = function (argv, backend) {
     // a single static backend.
     this.backend = backend;
-    this.handshakeService();
+    
+    //FIXME
     this.configureAndStart(argv);
-
+    
     /*
     this.shareId = ('shareId' in argv) ? argv['shareId'] : 'testshareid';
 	
@@ -78,6 +79,7 @@ var logger = function (req, res, next) {
 standaloneServer.prototype.handshakeService = function () {
     var self = this;
     self.service = new HandshakeService();
+    self.secured = true; //OK i'm in secure mode!
     //console.log('service = ', this.service);
     //FIXME: this should be loaded instead of generated
     self.keypair = Handshake.createKeypair();
@@ -85,26 +87,39 @@ standaloneServer.prototype.handshakeService = function () {
     console.log('>> Server : Public key: ', self.publicKey);
     //console.log('>> Server : Public key: ', self.service.bob.publicKey);
     console.log('>> Server : Handshake service created');
-
+    
 };
 
 /*
  *
  *
  */
-standaloneServer.prototype.mountInstance = function (cb) {
+standaloneServer.prototype.mountInstance = function (cb,clientUri) {
     var self = this;
-    if (CLIENT_URL) {
+	self.clientUri = clientUri;
+	var addresses = findLocalIps();
+	var localhost = addresses.length >= 1 ? addresses[0]:self.host;
+	console.log('localhost = ', localhost);
+	
+    if (self.clientUri) {
+		
         publicIp.v4(function (err, ip) {
 
-            var host = process.env.NODE_ENV == 'production' ? ip : self.host;
+            var host = process.env.HOST == 'remote' ? ip : localhost;
+            //FIXME:
+            host = self.host;
             var port = self.port;
-            
             
             var alicePK = Handshake.stringify(self.service.bob.publicKey);
             console.log('service public key: ', alicePK);
             
-            var uri = CLIENT_URL + '/mount?instance=' + host + '&port=' + port + '&secured=true&alice=' + alicePK;
+            //var uri = CLIENT_URL + '/mount?instance=' + host + '&port=' + port + '&secured=true&alice=' + alicePK;
+            //FIXME: get secured mode from console
+            var uri = self.clientUri + '/mount?instance=' + host + '&port=' + port + '&secured=true&alice=' + alicePK;
+
+            //var uri = self.clientUri + '/mount?instance=' + host + '&port=' + port + '&secured=false';
+			console.log(uri);
+
             require('http').get(uri, function (res) {
                 var content = '';
                 res.on('data', function (d) {
@@ -114,7 +129,7 @@ standaloneServer.prototype.mountInstance = function (cb) {
 
                 res.on('end', function () {
                     self.instanceId = JSON.parse(content).instance_id;
-                    var instanceUrl = CLIENT_URL + '/instance/' + self.instanceId;
+                    var instanceUrl = self.clientUri + '/instance/' + self.instanceId;
                     console.log("Browse files here -->" + instanceUrl);
                     return cb();
                 });
@@ -145,8 +160,11 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     var compress = argv['compress'];
     var mode = argv['mode'];
     var log = argv['log'];
+    //FIXME: pass this in!
+    var secured = argv['secured'] || 'true';
     var serverBootStatus = '';
-
+    
+    console.log('client = ', client);
 
     if (compress == 'true') {
 
@@ -159,6 +177,16 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     } else {
 
         serverBootStatus += '>> Server : Compression is Off \n';
+    }
+    
+    //FIXME: pass in bob's public key!
+    if (secured == 'true') {
+        self.secured = true;
+        self.handshakeService();
+        serverBootStatus += '>> Server: Secured mode is On \n';
+    }
+    else {
+        serverBootStatus += '>> Server: Secured mode is Off \n';
     }
 
     console.log('using CORS', corsOptions);
@@ -180,6 +208,9 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     if (client) {
 
         app.use(express.static(require('path').normalize(client)));
+        
+        //do this so that server still renders the site when accesssing from localhost:9999/instance/...
+        app.use('/instance/*', express.static(require('path').normalize(client)));
 
 
 
@@ -217,6 +248,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
 standaloneServer.prototype.updateStats = function (cb) {
     var instanceId = this.instanceId;
+	var self = this ;
 
     var body = stats;
     var headers = {
@@ -226,7 +258,7 @@ standaloneServer.prototype.updateStats = function (cb) {
 
     var options = {
 
-        uri: CLIENT_URL + '/instance/' + instanceId + '/update_stats',
+        uri: self.clientUri + '/instance/' + instanceId + '/update_stats',
         method: 'POST',
         headers: headers,
         json: true,
@@ -311,22 +343,39 @@ standaloneServer.prototype.routerDebug = function () {
     });
 
     app.get('/dir/:shareId/*', function (req, res, next) {
-
-        var shareId = req.params.shareId;
-        // FIXME : appending of extra slash at end of path should be taken
-        // care at backend itself 
-        var path = req.params[0] + '/';
-        stub = function () {
-            backend.ls(path, function (err, data) {
-
-
-                var stub = data;
-                res.status(200).json(stub);
-            });
+        var ok = true;
+        //block this if i am in secured mode!?
+        if (self.secured){
+          //res.status(401).send('');
+          //decrypt the shareId using session key?
+          var shareId = req.params.shareId;
+          var sign = req.query.sign;
+          console.log('secured API, sign=', sign);
+          
+          //FIXME: use actual path
+          ok = self.service.verifyRequest('', '/dir/testshareid', sign);
+          console.log('verify ok: ', ok);
+          
+          //res.status(401).send('Unauthorized');
+          //FIXME: verify param
+        }
+        //else {
+        if (ok) {
+          //code
+        
+          var shareId = req.params.shareId;
+          // FIXME : appending of extra slash at end of path should be taken
+          // care at backend itself 
+          var path = req.params[0] + '/';
+          stub = function () {
+              backend.ls(path, function (err, data) {
+                  var stub = data;
+                  res.status(200).json(stub);
+              });
+          }
         }
         next();
     });
-
 
 
     app.get('/dir/:shareId', function (req, res, next) {
@@ -342,14 +391,15 @@ standaloneServer.prototype.routerDebug = function () {
                     });
 
                 }
-
-                var stub = data;
-                res.status(200).json(stub);
+                else {
+                  var stub = data;
+                  res.status(200).json(stub);
+                }
             });
         }
         next();
     });
-
+  
 
     app.get('/file/:shareId/*', function (req, res, next) {
 
@@ -601,9 +651,9 @@ standaloneServer.prototype.routerDebug = function () {
 
 
         if (typeof (stub) == "function") { //send back only when we have response
-
             stub();
-        } else {
+        } else if (typeof(stub)!='undefined') {
+            console.log('sending stub: ', stub);
             res.status(200).json(stub);
         }
     });
@@ -871,7 +921,25 @@ var strToArr = function (str) {
         arr.push(str.charCodeAt(i));
     }
     return new Uint8Array(arr);
-}
+};
 
+var findLocalIps = function(){
+
+	var os = require('os');
+
+	var interfaces = os.networkInterfaces();
+	var addresses = [];
+	for (var k in interfaces) {
+    	for (var k2 in interfaces[k]) {
+        	var address = interfaces[k][k2];
+        	if (address.family === 'IPv4' && !address.internal) {
+            	addresses.push(address.address);
+       		 }
+    	}
+	}
+
+return addresses;
+	
+};
 
 module.exports = standaloneServer;
