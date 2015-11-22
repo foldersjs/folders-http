@@ -80,9 +80,9 @@ standaloneServer.prototype.handshakeService = function () {
     self.service = new HandshakeService();
     //console.log('service = ', this.service);
     //FIXME: this should be loaded instead of generated
-    // self.keypair = Handshake.createKeypair();
-    //self.publicKey = Handshake.stringify(self.keypair.publicKey)
-    //console.log('>> Server : Public key: ', self.publicKey);
+    self.keypair = Handshake.createKeypair();
+    self.publicKey = Handshake.stringify(self.keypair.publicKey)
+    console.log('>> Server : Public key: ', self.publicKey);
     //console.log('>> Server : Public key: ', self.service.bob.publicKey);
     console.log('>> Server : Handshake service created');
 
@@ -99,7 +99,12 @@ standaloneServer.prototype.mountInstance = function (cb) {
 
             var host = process.env.NODE_ENV == 'production' ? ip : self.host;
             var port = self.port;
-            var uri = CLIENT_URL + '/mount?instance=' + host + '&port=' + port;
+            
+            
+            var alicePK = Handshake.stringify(self.service.bob.publicKey);
+            console.log('service public key: ', alicePK);
+            
+            var uri = CLIENT_URL + '/mount?instance=' + host + '&port=' + port + '&secured=true&alice=' + alicePK;
             require('http').get(uri, function (res) {
                 var content = '';
                 res.on('data', function (d) {
@@ -260,6 +265,50 @@ standaloneServer.prototype.routerDebug = function () {
         next();
     });
     */
+    
+    app.get('/handshake', function (req, res) {
+        //console.log('handshake: bob = ', self.service.bob);
+        
+        var token = req.query.token;
+        console.log('token = ', token);
+        
+        
+        //FIXME: this should be passed in from console or from management page
+        var userPublicKey = Handshake.decodeHexString('422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14');
+        
+        token = Handshake.decodeHexString(token);
+        token = Handshake.join([userPublicKey, token]);
+        
+        //expected: decoded input length is 72 bytes, first 24 bytes is nonce, last 48 bytes is signed public key
+        console.log('token length: ', token.length);
+        
+        //422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14
+        
+        //var pk = HandshakeService.decodeHexString('422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14');
+        //console.log('public key length: ', pk);
+        
+        //self.service.setUserPublicKey('');
+        //combine user's public key with token
+        
+        
+        //try to unbox this token!?
+        var ok =  self.service.node('', token);
+        if (!ok) {
+          res.status(401).send('invalid token');
+        }
+        else {
+          //OK!?
+          res.status(200).json({ 'success' : true });
+        }
+        
+        
+        //var options = fio.createNode(self.service.bob);
+
+        // sending Bob public key to client
+        //res.send(options.body);
+
+
+    });
 
     app.get('/dir/:shareId/*', function (req, res, next) {
 
@@ -579,13 +628,14 @@ standaloneServer.prototype.routerLive = function () {
      */
     app.get('/handshake', function (req, res) {
 
-
-        var options = fio.createNode(self.service.bob);
+  
+        console.log('handshake: bob = ', self.service.bob);
+        
+        //var options = fio.createNode(self.service.bob);
 
         // sending Bob public key to client
-        res.send(options.body);
-
-
+        //res.send(options.body);
+        
     });
 
     //FIXME: quick hack to handle PUT request for handshake
