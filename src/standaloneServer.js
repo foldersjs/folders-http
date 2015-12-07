@@ -306,7 +306,7 @@ standaloneServer.prototype.routerDebug = function () {
         
         
         //FIXME: this should be passed in from console or from management page
-        var userPublicKey = Handshake.decodeHexString('422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14');
+        var userPublicKey = Handshake.decodeHexString('B27321228EC6314EF585C0BED5403D93D8D9AF56C25BC66FA6695F64EAAF581C');
         
         token = Handshake.decodeHexString(token);
         token = Handshake.join([userPublicKey, token]);
@@ -321,9 +321,10 @@ standaloneServer.prototype.routerDebug = function () {
         
         //self.service.setUserPublicKey('');
         //combine user's public key with token
-        
+        //var nodeId = self.service.endpoint(userPublicKey);
         
         //try to unbox this token!?
+        //FIXME: proper nodeId!?
         var ok =  self.service.node('', token);
         if (!ok) {
           res.status(401).send('invalid token');
@@ -346,6 +347,7 @@ standaloneServer.prototype.routerDebug = function () {
         var ok = true;
         //block this if i am in secured mode!?
         if (self.secured){
+          /*
           //res.status(401).send('');
           //decrypt the shareId using session key?
           var shareId = req.params.shareId;
@@ -355,6 +357,14 @@ standaloneServer.prototype.routerDebug = function () {
           //FIXME: use actual path
           ok = self.service.verifyRequest('', '/dir/testshareid', sign);
           console.log('verify ok: ', ok);
+          */
+          
+          ok = self.service.verifyRequest(req);
+          if (!ok) {
+            res.status(403).send("Unauthorized");
+            return;
+            //code
+          }
           
           //res.status(401).send('Unauthorized');
           //FIXME: verify param
