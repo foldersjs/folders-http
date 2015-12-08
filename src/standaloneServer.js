@@ -11,6 +11,7 @@
  * This module can be used both in debug mode and live mode
  */
 var express = require('express');
+var bodyParser = require('body-parser');
 var request = require('request');
 var publicIp = require('public-ip');
 var compression = require('compression');
@@ -297,6 +298,21 @@ standaloneServer.prototype.routerDebug = function () {
         next();
     });
     */
+    //NaCl request authorization middle-ware
+    var authRequest = function(req, res, next) {
+      console.log('authRequest');
+      if (self.secured){
+          ok = self.service.verifyRequest(req);
+          if (!ok) {
+            res.status(403).send("Unauthorized");
+            return;
+            //code
+          }
+        }
+        next();
+    }
+    
+    app.use(bodyParser.urlencoded({ extended: true })); 
     
     app.get('/handshake', function (req, res) {
         //console.log('handshake: bob = ', self.service.bob);
@@ -343,22 +359,11 @@ standaloneServer.prototype.routerDebug = function () {
 
     });
 
-    app.get('/dir/:shareId/*', function (req, res, next) {
+    app.get('/dir/:shareId/*', authRequest, function (req, res, next) {
         var ok = true;
         //block this if i am in secured mode!?
+        /*
         if (self.secured){
-          /*
-          //res.status(401).send('');
-          //decrypt the shareId using session key?
-          var shareId = req.params.shareId;
-          var sign = req.query.sign;
-          console.log('secured API, sign=', sign);
-          
-          //FIXME: use actual path
-          ok = self.service.verifyRequest('', '/dir/testshareid', sign);
-          console.log('verify ok: ', ok);
-          */
-          
           ok = self.service.verifyRequest(req);
           if (!ok) {
             res.status(403).send("Unauthorized");
@@ -369,6 +374,7 @@ standaloneServer.prototype.routerDebug = function () {
           //res.status(401).send('Unauthorized');
           //FIXME: verify param
         }
+        */
         //else {
         if (ok) {
           //code
@@ -411,7 +417,7 @@ standaloneServer.prototype.routerDebug = function () {
     });
   
 
-    app.get('/file/:shareId/*', function (req, res, next) {
+    app.get('/file/:shareId/*', authRequest, function (req, res, next) {
 
         var shareId = req.params.shareId;
         // No extra slash at end of path in case of files
@@ -472,7 +478,7 @@ standaloneServer.prototype.routerDebug = function () {
     });
 
     app.options('/manually_upload_file', function (req, res) {
-
+       console.log('OPTIONS cmd');
         var shareId = req.query.shareId;
         var fileId = req.query.fileId;
         res.status(200).end();
@@ -480,6 +486,7 @@ standaloneServer.prototype.routerDebug = function () {
 
 
     app.post('/manually_upload_file', function (req, res) {
+      console.log('POST cmd');
         var shareId = req.query.shareId;
         var fileId = req.query.fileId;
         var match = "web everything:web network:" + shareId + "/";
@@ -564,16 +571,36 @@ standaloneServer.prototype.routerDebug = function () {
 
     });
 
-    app.post('/clear_file', function (req, res, next) {
+    app.post('/clear_file', authRequest, function (req, res, next) {
+      var shareId = req.body.shareId;
+      var fileId = req.body.fileId;
 
+      //console.log('clear_file, fileId = ', fileId)
+      backend.unlink(fileId, function (err, data) {
+
+          if (err) {
+              res.status(500).json({
+                  "success": false
+              });
+
+          } else {
+
+              res.status(200).json({
+                  "success": true
+              });
+          }
+      });
+      /*
         stub = function () {
             var content = '';
 
             req.on('data', function (data) {
+              console.log('req data');
                 content += data;
             });
 
             req.on('end', function () {
+               console.log('req end');
                 var obj = Qs.parse(content);
                 var shareId = obj.shareId;
                 var fileId = obj.fileId;
@@ -598,6 +625,7 @@ standaloneServer.prototype.routerDebug = function () {
             });
         }
         next();
+        */
     });
 
     app.post('/set_files', function (req, res, next) {
