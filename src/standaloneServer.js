@@ -80,6 +80,7 @@ var logger = function (req, res, next) {
 standaloneServer.prototype.handshakeService = function () {
     var self = this;
     self.service = new HandshakeService();
+
     self.secured = true; //OK i'm in secure mode!
     //console.log('service = ', this.service);
     //FIXME: this should be loaded instead of generated
@@ -111,15 +112,15 @@ standaloneServer.prototype.mountInstance = function (cb,clientUri) {
             host = self.host;
             var port = self.port;
             
-            var alicePK = Handshake.stringify(self.service.bob.publicKey);
-            console.log('service public key: ', alicePK);
-            
-            //var uri = CLIENT_URL + '/mount?instance=' + host + '&port=' + port + '&secured=true&alice=' + alicePK;
-            //FIXME: get secured mode from console
-            var uri = self.clientUri + '/mount?instance=' + host + '&port=' + port + '&secured=true&alice=' + alicePK;
-
-            //var uri = self.clientUri + '/mount?instance=' + host + '&port=' + port + '&secured=false';
-			console.log(uri);
+            var uri;
+            if (self.secured){
+            	var alicePK = Handshake.stringify(self.service.bob.publicKey);
+            	console.log('service public key: ', alicePK);
+            	uri = self.clientUri + '/mount?instance=' + host + '&port=' + port + '&secured=' + self.secured + '&alice=' + alicePK;
+            } else {
+            	uri = self.clientUri + '/mount?instance=' + host + '&port=' + port + '&secured=' + self.secured;
+            }
+            console.log(uri);
 
             require('http').get(uri, function (res) {
                 var content = '';
@@ -161,8 +162,8 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     var compress = argv['compress'];
     var mode = argv['mode'];
     var log = argv['log'];
-    //FIXME: pass this in!
-    var secured = argv['secured'] || 'true';
+    var secured = argv['secured'];
+    var userPublicKey = argv['userPublicKey'];
     var serverBootStatus = '';
     
     console.log('client = ', client);
@@ -181,8 +182,9 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     }
     
     //FIXME: pass in bob's public key!
-    if (secured == 'true') {
-        self.secured = true;
+    self.secured = secured;
+    if (secured) {
+        self.userPublicKey = userPublicKey;
         self.handshakeService();
         serverBootStatus += '>> Server: Secured mode is On \n';
     }
@@ -316,13 +318,13 @@ standaloneServer.prototype.routerDebug = function () {
     
     app.get('/handshake', function (req, res) {
         //console.log('handshake: bob = ', self.service.bob);
-        
+
         var token = req.query.token;
         console.log('token = ', token);
-        
+
         
         //FIXME: this should be passed in from console or from management page
-        var userPublicKey = Handshake.decodeHexString('B27321228EC6314EF585C0BED5403D93D8D9AF56C25BC66FA6695F64EAAF581C');
+        var userPublicKey = Handshake.decodeHexString(self.userPublicKey);
         
         token = Handshake.decodeHexString(token);
         token = Handshake.join([userPublicKey, token]);
