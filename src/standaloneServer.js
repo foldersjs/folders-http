@@ -195,7 +195,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     console.log('using CORS', corsOptions);
     app.use(cors(corsOptions));
 
-    app.use(express.static(__dirname + client));
+    //app.use(express.static(__dirname + client));
 
     if (log == 'true') {
 
