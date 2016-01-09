@@ -149,14 +149,19 @@ standaloneServer.prototype.mountInstance = function (cb,clientUri) {
 
 
     } else {
+        console.log('clientUri not defined, running Intranet mode');
+        
         return cb();
     }
 };
 
 standaloneServer.prototype.configureAndStart = function (argv) {
     var self = this;
+    
+    //Default argument are already set in folders-cli/src/cli.js
     argv = argv || {};
     var client = argv['client'];
+    var clientPort = argv['clientPort'];
     var port = argv['listen'];
     var host = argv['host'];
     var compress = argv['compress'];
@@ -195,7 +200,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     console.log('using CORS', corsOptions);
     app.use(cors(corsOptions));
 
-    app.use(express.static(__dirname + client));
+    //app.use(express.static(__dirname + client));
 
     if (log == 'true') {
 
@@ -209,21 +214,30 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     }
 
     if (client) {
-
-        app.use(express.static(require('path').normalize(client)));
+        serverBootStatus += '>> Mounted Client on http://localhost:' + clientPort;
+        
+        app_client = express();
+        
+        app_client.use(express.static(require('path').normalize(client)));
         
         //do this so that server still renders the site when accesssing from localhost:9999/instance/...
-        app.use('/instance/*', express.static(require('path').normalize(client)));
+        app_client.use('/instance/*', express.static(require('path').normalize(client)));
+        
+        app_client.use('/g/*', express.static(require('path').normalize(client)));
+        
+        app_client.listen(clientPort, host, function() {
+            console.log('Client mounted successfully!');
+        });
 
-
-
-    } else {
+    }
+    /*
+    else {
 
         app.get('/', function (req, res, next) {
             res.status(301).send("No Client Attached");
         });
-
     }
+    */
 
     if ('DEBUG' != mode.toUpperCase()) {
 
@@ -242,9 +256,10 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
         self.host = server.address().address;
         self.port = server.address().port;
-        serverBootStatus = '>> Server : Listening at http://' + self.host + ":" + self.port + '\n' + serverBootStatus;
+        serverBootStatus = '>> API Server : Listening at http://' + self.host + ":" + self.port + '\n' + serverBootStatus;
         console.log(serverBootStatus);
     });
+    
 
 };
 
@@ -682,6 +697,24 @@ standaloneServer.prototype.routerDebug = function () {
         next();
 
     });
+    
+    app.get('/instance/:instanceId/*', function(req, res, next) {
+      
+      
+      var instanceId = req.params.instanceId;
+      console.log('instanceId: ', instanceId);
+      
+      //FIXME: hardcoded!
+      stub = {"success": true,
+        "instance": {"instance_id": "zJAVqA",
+        "mount_ip": "0.0.0.0",
+        "mount_port": "9999",
+        "user_name": null,
+        "bytes_in": 0, "bytes_out": 0,
+        "files": null}
+      }
+      next();
+    });
 
 
     app.use(function (req, res, next) {
@@ -693,7 +726,7 @@ standaloneServer.prototype.routerDebug = function () {
         if (typeof (stub) == "function") { //send back only when we have response
             stub();
         } else if (typeof(stub)!='undefined') {
-            console.log('sending stub: ', stub);
+            //console.log('sending stub: ', stub);
             res.status(200).json(stub);
         }
     });
