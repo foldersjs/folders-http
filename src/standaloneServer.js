@@ -502,6 +502,26 @@ standaloneServer.prototype.routerDebug = function () {
         };
       });
     });
+    
+    //Allow user to query annotation of a given path!
+    app.get('/annotation', function(req, res) {
+        var path = req.query.path;
+        console.log('/annotation', path);
+        if (path == ''){
+            //console.log('path not DEFINED');
+            res.status(200).json({
+                  error: 'Path not defined!'
+            });
+            return;
+        }
+        annotate.getNote(path, function(err, note) {
+          //ignore error, we do not really care!
+          res.status(200).json({
+            "success": true,
+            "note": note
+          })
+        })
+    });
   
     app.post('/signin', function (req, res) {
 

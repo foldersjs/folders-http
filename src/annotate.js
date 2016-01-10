@@ -16,6 +16,11 @@ var Annotation = function() {
         db.run("CREATE TABLE if not exists notes (path TEXT, note TEXT)");
     }
     
+    //Reset the database!
+    var reset = function() {
+        db.run("DELETE FROM notes")
+    }
+    
     var addNote = function(path, note, cb) {
         db.run("INSERT INTO notes (path, note) VALUES (?,?)", path, note, function(err) {
             if (typeof(cb)!='undefined'){
@@ -27,10 +32,14 @@ var Annotation = function() {
     
     var getNote = function(path, cb) {
         db.all("SELECT * FROM notes WHERE path=?", path, function(err, rows) {
-            console.log('found rows: ', rows.length, rows[0]);
+            //console.log('found rows: ', rows.length, rows[0]);
             if (typeof(cb)!='undefined') {
-                cb(err, rows);
+                if (rows.length > 0) {
+                    cb(err, rows[0].note);
+                }
+                else cb(null, '');  //no note defined at thsi location
             }
+            
         });
     }
     
@@ -48,7 +57,7 @@ var Annotation = function() {
         db.close();
     }
     
-    
+    this.reset = reset;
     this.addNote = addNote;
     this.getNote = getNote;
     this.browse = browse;
