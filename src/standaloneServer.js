@@ -17,6 +17,7 @@ var publicIp = require('public-ip');
 var compression = require('compression');
 var stubApp = require('./app/stubApp');
 var app = express();
+var Annotation = require('./annotate');
 
 //Allow CORS when withCredentials = true in client
 //https://github.com/expressjs/cors
@@ -43,6 +44,7 @@ var HandshakeService = Handshake.HandshakeService;
 var standaloneServer = function (argv, backend) {
     // a single static backend.
     this.backend = backend;
+    this.annotate = new Annotation();
     
     //FIXME
     this.configureAndStart(argv);
@@ -303,7 +305,7 @@ standaloneServer.prototype.routerDebug = function () {
     var self = this,
         stub;
     var backend = self.backend;
-
+    var annotate = self.annotate;
 
     //haipt: replaced this by cors module
     /*
@@ -473,7 +475,34 @@ standaloneServer.prototype.routerDebug = function () {
         }
         next();
     });
-
+    
+    
+    ///Allow user to add new annotation!
+    app.post('/annotate', function(req, res) {
+      var path = req.body.path || '';
+      var note = req.body.note || '';
+      console.log('annotate request: ', path, note);
+      if (path == ''){
+          //console.log('path not DEFINED');
+          res.status(200).send({
+                error: 'Path not defined!'
+          });
+          return;
+      }
+      annotate.addNote(path, note, function(err) {
+        if (err) {
+          res.status(200).send({
+              error: err
+          });
+        }
+        else {
+          res.status(200).json({
+            "success": true
+          });
+        };
+      });
+    });
+  
     app.post('/signin', function (req, res) {
 
         var content = '';
@@ -732,7 +761,7 @@ standaloneServer.prototype.routerDebug = function () {
     });
 };
 
-
+//FIXME: routerLive does not seem to be in use anymore!
 standaloneServer.prototype.routerLive = function () {
 
     var self = this;
