@@ -451,6 +451,10 @@ standaloneServer.prototype.routerDebug = function () {
                     res.setHeader('Content-Length', result.size);
                     res.setHeader('Content-disposition', 'attachment; filename=' + result.name);
                     res.setHeader('Content-type', mime.lookup(result.name));
+                    //NOTES, sent header first.
+                    //some src stream will overrider the content-type, content-length when pipe
+                    res.writeHead(200);
+
                     result.stream.pipe(res);
                 }
 
