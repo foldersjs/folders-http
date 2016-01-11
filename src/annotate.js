@@ -13,16 +13,25 @@ var Annotation = function() {
     }
     
     var prepareTable = function() {
-        db.run("CREATE TABLE if not exists notes (path TEXT, note TEXT)");
+        db.run("CREATE TABLE if not exists notes (ID INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT, note TEXT)", function(err) {
+            if (err) {
+                console.log('Create table error: ', err);
+            }
+        });
     }
     
     //Reset the database!
     var reset = function() {
-        db.run("DELETE FROM notes")
+        db.serialize( function() {
+            prepareTable();
+            db.run("DELETE FROM notes");    
+        });
     }
     
     var addNote = function(path, note, cb) {
-        db.run("INSERT INTO notes (path, note) VALUES (?,?)", path, note, function(err) {
+        //db.run("INSERT INTO notes (path, note) VALUES (?,?)", path, note, function(err) {
+        
+        db.run("INSERT OR REPLACE INTO notes (ID, path, note) VALUES ((SELECT ID FROM notes WHERE path = ?), ?, ?)", path, path, note, function(err) {
             if (typeof(cb)!='undefined'){
                 cb(err);
             }
@@ -48,8 +57,8 @@ var Annotation = function() {
         
         db.each("SELECT * FROM NOTES", function(err, row) {
             //console.log('Existing notes:')
-                //console.log(row);
-            console.log(row.path + ': ' + row.note);
+            console.log(row);
+            //console.log(row.path + ': ' + row.note);
         })
     }
     

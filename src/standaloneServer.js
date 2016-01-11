@@ -45,6 +45,7 @@ var standaloneServer = function (argv, backend) {
     // a single static backend.
     this.backend = backend;
     this.annotate = new Annotation();
+    this.annotate.reset(); //reset path on DB
     
     //FIXME
     this.configureAndStart(argv);
