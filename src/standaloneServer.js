@@ -209,15 +209,22 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
         app.use(logger);
 
-        serverBootStatus += '>> Server : Logging is on \n ';
+        serverBootStatus += '>> Server : Logging is on \n';
 
     } else {
 
-        serverBootStatus += '>> Server : Logging is off \n ';
+        serverBootStatus += '>> Server : Logging is off \n';
     }
 
     if (client) {
-        serverBootStatus += '>> Mounted Client on http://localhost:' + clientPort;
+        serverBootStatus += '>> Mounted Client on http://localhost:' + clientPort + '\n';
+        
+        if (secured) {
+          serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/' + Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32) + '\n';
+        }
+        else {
+          serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/demo\n';
+        }
         
         app_client = express();
         
@@ -339,29 +346,37 @@ standaloneServer.prototype.routerDebug = function () {
 
         var token = req.query.token;
         console.log('token = ', token);
+        
+        var ok = false;
 
+        if (self.userPublicKey) { //3-way handshake
+          //FIXME: this should be passed in from console or from management page
+          var userPublicKey = Handshake.decodeHexString(self.userPublicKey);
+          
+          token = Handshake.decodeHexString(token);
+          token = Handshake.join([userPublicKey, token]);
+          
+          //expected: decoded input length is 72 bytes, first 24 bytes is nonce, last 48 bytes is signed public key
+          console.log('token length: ', token.length);
+          
+          //422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14
+          
+          //var pk = HandshakeService.decodeHexString('422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14');
+          //console.log('public key length: ', pk);
+          
+          //self.service.setUserPublicKey('');
+          //combine user's public key with token
+          //var nodeId = self.service.endpoint(userPublicKey);
+          
+          //try to unbox this token!?
+          //FIXME: proper nodeId!?
+          ok =  self.service.node('', token);
+        }
+        else {
+          var nodeId = Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32);
+          ok = self.service.node(nodeId, token);
+        }
         
-        //FIXME: this should be passed in from console or from management page
-        var userPublicKey = Handshake.decodeHexString(self.userPublicKey);
-        
-        token = Handshake.decodeHexString(token);
-        token = Handshake.join([userPublicKey, token]);
-        
-        //expected: decoded input length is 72 bytes, first 24 bytes is nonce, last 48 bytes is signed public key
-        console.log('token length: ', token.length);
-        
-        //422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14
-        
-        //var pk = HandshakeService.decodeHexString('422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14');
-        //console.log('public key length: ', pk);
-        
-        //self.service.setUserPublicKey('');
-        //combine user's public key with token
-        //var nodeId = self.service.endpoint(userPublicKey);
-        
-        //try to unbox this token!?
-        //FIXME: proper nodeId!?
-        var ok =  self.service.node('', token);
         if (!ok) {
           res.status(401).send('invalid token');
         }
@@ -754,15 +769,28 @@ standaloneServer.prototype.routerDebug = function () {
       var instanceId = req.params.instanceId;
       console.log('instanceId: ', instanceId);
       
+      
+      
+      //FIXME: handle case for secured!
       //FIXME: hardcoded!
       stub = {"success": true,
-        "instance": {"instance_id": "zJAVqA",
-        "mount_ip": "0.0.0.0",
-        "mount_port": "9999",
-        "user_name": null,
-        "bytes_in": 0, "bytes_out": 0,
-        "files": null}
+        "instance": {
+          "instance_id": instanceId,
+          "mount_ip": "0.0.0.0",
+          "mount_port": "9999",
+          "user_name": null,
+          "bytes_in": 0, "bytes_out": 0,
+          "files": null,
+          "secured": self.secured,
+        }
       }
+      /*
+      if (self.secured) {
+        //generate session key pair and return the private session key in stub as well!
+        var sessionKeyPair = self.service.generateSessionKey();
+        stub.instance["sessionPrivateKey"] = sessionKeyPair.secretKey;
+        console.log('session secret key:', sessionKeyPair.secretKey);
+      }*/
       next();
     });
 

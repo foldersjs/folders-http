@@ -9,6 +9,10 @@ annotate.serialize(function() {
         annotate.getNote('/a/c');
     }
     else {
+        /*
+        annotate.addNote('/Your network/zJAVqA', 'Root folder', function(err) {
+            console.log('addnote error: ', err);
+        });*/
         annotate.browse();
     }
 });
