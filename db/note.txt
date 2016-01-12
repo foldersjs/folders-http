@@ -1,0 +1,6 @@
+This folders is used to store the sqlite db file for path annotation.
+Columns:
+- ID INTEGER PRIMARY KEY AUTOINCREMENT
+- path TEXT
+- note TEXT
+

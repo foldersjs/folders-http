@@ -17,6 +17,7 @@ var publicIp = require('public-ip');
 var compression = require('compression');
 var stubApp = require('./app/stubApp');
 var app = express();
+var Annotation = require('./annotate');
 
 //Allow CORS when withCredentials = true in client
 //https://github.com/expressjs/cors
@@ -43,6 +44,8 @@ var HandshakeService = Handshake.HandshakeService;
 var standaloneServer = function (argv, backend) {
     // a single static backend.
     this.backend = backend;
+    this.annotate = new Annotation();
+    this.annotate.reset(); //reset path on DB
     
     //FIXME
     this.configureAndStart(argv);
@@ -149,14 +152,19 @@ standaloneServer.prototype.mountInstance = function (cb,clientUri) {
 
 
     } else {
+        console.log('clientUri not defined, running Intranet mode');
+        
         return cb();
     }
 };
 
 standaloneServer.prototype.configureAndStart = function (argv) {
     var self = this;
+    
+    //Default argument are already set in folders-cli/src/cli.js
     argv = argv || {};
     var client = argv['client'];
+    var clientPort = argv['clientPort'];
     var port = argv['listen'];
     var host = argv['host'];
     var compress = argv['compress'];
@@ -201,29 +209,45 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
         app.use(logger);
 
-        serverBootStatus += '>> Server : Logging is on \n ';
+        serverBootStatus += '>> Server : Logging is on \n';
 
     } else {
 
-        serverBootStatus += '>> Server : Logging is off \n ';
+        serverBootStatus += '>> Server : Logging is off \n';
     }
 
     if (client) {
-
-        app.use(express.static(require('path').normalize(client)));
+        serverBootStatus += '>> Mounted Client on http://localhost:' + clientPort + '\n';
+        
+        if (secured) {
+          serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/' + Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32) + '\n';
+        }
+        else {
+          serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/demo\n';
+        }
+        
+        app_client = express();
+        
+        app_client.use(express.static(require('path').normalize(client)));
         
         //do this so that server still renders the site when accesssing from localhost:9999/instance/...
-        app.use('/instance/*', express.static(require('path').normalize(client)));
+        app_client.use('/instance/*', express.static(require('path').normalize(client)));
+        
+        app_client.use('/g/*', express.static(require('path').normalize(client)));
+        
+        app_client.listen(clientPort, host, function() {
+            console.log('Client mounted successfully!');
+        });
 
-
-
-    } else {
+    }
+    /*
+    else {
 
         app.get('/', function (req, res, next) {
             res.status(301).send("No Client Attached");
         });
-
     }
+    */
 
     if ('DEBUG' != mode.toUpperCase()) {
 
@@ -242,9 +266,10 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
         self.host = server.address().address;
         self.port = server.address().port;
-        serverBootStatus = '>> Server : Listening at http://' + self.host + ":" + self.port + '\n' + serverBootStatus;
+        serverBootStatus = '>> API Server : Listening at http://' + self.host + ":" + self.port + '\n' + serverBootStatus;
         console.log(serverBootStatus);
     });
+    
 
 };
 
@@ -288,7 +313,7 @@ standaloneServer.prototype.routerDebug = function () {
     var self = this,
         stub;
     var backend = self.backend;
-
+    var annotate = self.annotate;
 
     //haipt: replaced this by cors module
     /*
@@ -321,29 +346,37 @@ standaloneServer.prototype.routerDebug = function () {
 
         var token = req.query.token;
         console.log('token = ', token);
+        
+        var ok = false;
 
+        if (self.userPublicKey) { //3-way handshake
+          //FIXME: this should be passed in from console or from management page
+          var userPublicKey = Handshake.decodeHexString(self.userPublicKey);
+          
+          token = Handshake.decodeHexString(token);
+          token = Handshake.join([userPublicKey, token]);
+          
+          //expected: decoded input length is 72 bytes, first 24 bytes is nonce, last 48 bytes is signed public key
+          console.log('token length: ', token.length);
+          
+          //422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14
+          
+          //var pk = HandshakeService.decodeHexString('422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14');
+          //console.log('public key length: ', pk);
+          
+          //self.service.setUserPublicKey('');
+          //combine user's public key with token
+          //var nodeId = self.service.endpoint(userPublicKey);
+          
+          //try to unbox this token!?
+          //FIXME: proper nodeId!?
+          ok =  self.service.node('', token);
+        }
+        else {
+          var nodeId = Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32);
+          ok = self.service.node(nodeId, token);
+        }
         
-        //FIXME: this should be passed in from console or from management page
-        var userPublicKey = Handshake.decodeHexString(self.userPublicKey);
-        
-        token = Handshake.decodeHexString(token);
-        token = Handshake.join([userPublicKey, token]);
-        
-        //expected: decoded input length is 72 bytes, first 24 bytes is nonce, last 48 bytes is signed public key
-        console.log('token length: ', token.length);
-        
-        //422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14
-        
-        //var pk = HandshakeService.decodeHexString('422942744179B9600EBB2C9E4656BDB1FC6163A27A33C1C885B95C05C43F8B14');
-        //console.log('public key length: ', pk);
-        
-        //self.service.setUserPublicKey('');
-        //combine user's public key with token
-        //var nodeId = self.service.endpoint(userPublicKey);
-        
-        //try to unbox this token!?
-        //FIXME: proper nodeId!?
-        var ok =  self.service.node('', token);
         if (!ok) {
           res.status(401).send('invalid token');
         }
@@ -462,7 +495,54 @@ standaloneServer.prototype.routerDebug = function () {
         }
         next();
     });
-
+    
+    
+    ///Allow user to add new annotation!
+    app.post('/annotate', function(req, res) {
+      var path = req.body.path || '';
+      var note = req.body.note || '';
+      console.log('annotate request: ', path, note);
+      if (path == ''){
+          //console.log('path not DEFINED');
+          res.status(200).send({
+                error: 'Path not defined!'
+          });
+          return;
+      }
+      annotate.addNote(path, note, function(err) {
+        if (err) {
+          res.status(200).send({
+              error: err
+          });
+        }
+        else {
+          res.status(200).json({
+            "success": true
+          });
+        };
+      });
+    });
+    
+    //Allow user to query annotation of a given path!
+    app.get('/annotation', function(req, res) {
+        var path = req.query.path;
+        console.log('/annotation', path);
+        if (path == ''){
+            //console.log('path not DEFINED');
+            res.status(200).json({
+                  error: 'Path not defined!'
+            });
+            return;
+        }
+        annotate.getNote(path, function(err, note) {
+          //ignore error, we do not really care!
+          res.status(200).json({
+            "success": true,
+            "note": note
+          })
+        })
+    });
+  
     app.post('/signin', function (req, res) {
 
         var content = '';
@@ -686,6 +766,37 @@ standaloneServer.prototype.routerDebug = function () {
         next();
 
     });
+    
+    app.get('/instance/:instanceId/*', function(req, res, next) {
+      
+      
+      var instanceId = req.params.instanceId;
+      console.log('instanceId: ', instanceId);
+      
+      
+      
+      //FIXME: handle case for secured!
+      //FIXME: hardcoded!
+      stub = {"success": true,
+        "instance": {
+          "instance_id": instanceId,
+          "mount_ip": "0.0.0.0",
+          "mount_port": "9999",
+          "user_name": null,
+          "bytes_in": 0, "bytes_out": 0,
+          "files": null,
+          "secured": self.secured,
+        }
+      }
+      /*
+      if (self.secured) {
+        //generate session key pair and return the private session key in stub as well!
+        var sessionKeyPair = self.service.generateSessionKey();
+        stub.instance["sessionPrivateKey"] = sessionKeyPair.secretKey;
+        console.log('session secret key:', sessionKeyPair.secretKey);
+      }*/
+      next();
+    });
 
 
     app.use(function (req, res, next) {
@@ -697,13 +808,13 @@ standaloneServer.prototype.routerDebug = function () {
         if (typeof (stub) == "function") { //send back only when we have response
             stub();
         } else if (typeof(stub)!='undefined') {
-            console.log('sending stub: ', stub);
+            //console.log('sending stub: ', stub);
             res.status(200).json(stub);
         }
     });
 };
 
-
+//FIXME: routerLive does not seem to be in use anymore!
 standaloneServer.prototype.routerLive = function () {
 
     var self = this;
