@@ -220,11 +220,16 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         serverBootStatus += '>> Mounted Client on http://localhost:' + clientPort + '\n';
         
         if (secured) {
-          serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/' + Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32) + '\n';
+          self.instanceId = Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32);
+          //serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/' +  + '\n';
         }
         else {
-          serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/demo\n';
+          //serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/demo\n';
+          self.instanceId = 'demo';
         }
+        
+        serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/' +  self.instanceId + '\n';
+        
         
         app_client = express();
         
@@ -373,8 +378,8 @@ standaloneServer.prototype.routerDebug = function () {
           ok =  self.service.node('', token);
         }
         else {
-          var nodeId = Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32);
-          ok = self.service.node(nodeId, token);
+          //var nodeId = Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32);
+          ok = self.service.node(self.instanceId, token);
         }
         
         if (!ok) {
@@ -771,7 +776,15 @@ standaloneServer.prototype.routerDebug = function () {
       
       
       var instanceId = req.params.instanceId;
+      
+      if (instanceId!=self.instanceId) {
+        console.log('Invalid instance Id');
+        res.status(401).send();
+        return;
+      }
       console.log('instanceId: ', instanceId);
+      
+      //if this instanceId does not match our instanceId we should just quit!?
       
       
       
