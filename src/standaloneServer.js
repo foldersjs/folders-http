@@ -201,7 +201,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     }
 
 
-	corsOptions.origin.push("http://localhost:" + clientPort);
+	corsOptions.origin.push("http://" + host + ":" + clientPort);
 	console.log('using CORS', corsOptions);
     app.use(cors(corsOptions));
 
@@ -219,7 +219,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     }
 
     if (client) {
-        serverBootStatus += '>> Mounted Client on http://localhost:' + clientPort + '\n';
+        serverBootStatus += '>> Mounted Client on http://'+host+':' + clientPort + '\n';
         
         if (secured) {
           self.instanceId = Handshake.stringify(Handshake.hash(self.keypair.publicKey)).substr(0, 32);
@@ -230,9 +230,6 @@ standaloneServer.prototype.configureAndStart = function (argv) {
           self.instanceId = 'demo';
         }
         
-        serverBootStatus += '>> Server Endpoint: http://localhost:' + clientPort + '/instance/' +  self.instanceId + '\n';
-        
-        
         app_client = express();
         
         app_client.use(express.static(require('path').normalize(client)));
@@ -242,7 +239,8 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         
         app_client.use('/g/*', express.static(require('path').normalize(client)));
         
-        app_client.listen(clientPort, host, function() {
+        var clientServer = app_client.listen(clientPort, host, function() {
+        	serverBootStatus += '>> Server Endpoint: http://' + clientServer.address().address + ":" + clientServer.address().port + '/instance/' +  self.instanceId + '\n';
             console.log('Client mounted successfully!');
         });
 
