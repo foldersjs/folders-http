@@ -23,7 +23,7 @@ var Annotation = require('./annotate');
 //https://github.com/expressjs/cors
 var cors = require('cors');
 var corsOptions = {
-    origin: ['http://localhost:8000', 'http://localhost:9999', 'http://45.55.145.52:8000'],
+    origin: ['http://localhost:9999', 'http://45.55.145.52:8000'],
     credentials: true
 };
 
@@ -200,7 +200,9 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         serverBootStatus += '>> Server: Secured mode is Off \n';
     }
 
-    console.log('using CORS', corsOptions);
+
+	corsOptions.origin.push("http://localhost:" + clientPort);
+	console.log('using CORS', corsOptions);
     app.use(cors(corsOptions));
 
     //app.use(express.static(__dirname + client));
@@ -794,7 +796,7 @@ standaloneServer.prototype.routerDebug = function () {
         "instance": {
           "instance_id": instanceId,
           "mount_ip": "0.0.0.0",
-          "mount_port": "9999",
+          "mount_port": self.port,//"9999",
           "user_name": null,
           "bytes_in": 0, "bytes_out": 0,
           "files": null,
