@@ -200,9 +200,8 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         serverBootStatus += '>> Server: Secured mode is Off \n';
     }
 
-
-	corsOptions.origin.push("http://" + host + ":" + clientPort);
-	console.log('using CORS', corsOptions);
+    corsOptions.origin.push("http://" + host + ":" + clientPort);
+    console.log('using CORS', corsOptions);
     app.use(cors(corsOptions));
 
     //app.use(express.static(__dirname + client));
@@ -241,6 +240,12 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         
         var clientServer = app_client.listen(clientPort, host, function() {
         	serverBootStatus += '>> Server Endpoint: http://' + clientServer.address().address + ":" + clientServer.address().port + '/instance/' +  self.instanceId + '\n';
+
+            var clientUrl = "http://" + clientServer.address().address + ":" + clientServer.address().port;
+            if (corsOptions.origin[corsOptions.origin.length-1] != clientUrl){
+                corsOptions.origin.push(clientUrl);
+                console.log('using CORS', corsOptions);
+            }
             console.log('Client mounted successfully!');
         });
 
