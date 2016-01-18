@@ -23,7 +23,7 @@ var Annotation = require('./annotate');
 //https://github.com/expressjs/cors
 var cors = require('cors');
 var corsOptions = {
-    origin: ['http://localhost:9999', 'http://45.55.145.52:8000'],
+    origin: ['http://localhost:9999', 'http://45.55.145.52:8000', 'http://localhost:8000'],
     credentials: true
 };
 
@@ -45,7 +45,7 @@ var standaloneServer = function (argv, backend) {
     // a single static backend.
     this.backend = backend;
     this.annotate = new Annotation();
-    this.annotate.reset(); //reset path on DB
+    //this.annotate.reset(); //reset path on DB
     
     //FIXME
     this.configureAndStart(argv);
@@ -80,16 +80,28 @@ var logger = function (req, res, next) {
 };
 
 
-standaloneServer.prototype.handshakeService = function () {
+standaloneServer.prototype.handshakeService = function (serverPublicKey, serverSecretKey) {
     var self = this;
     self.service = new HandshakeService();
 
     self.secured = true; //OK i'm in secure mode!
     //console.log('service = ', this.service);
     //FIXME: this should be loaded instead of generated
-    self.keypair = Handshake.createKeypair();
-    self.publicKey = Handshake.stringify(self.keypair.publicKey)
-    console.log('>> Server : Public key: ', self.publicKey);
+    if (serverPublicKey && serverPublicKey!='') {
+      self.publicKey = serverPublicKey;
+      //self.secretKey = serverSecretKey; //FIXME: not used for Intranet mode at the moment!
+      self.keypair = {
+        'publicKey': Handshake.decodeHexString(serverPublicKey),
+        'secretKey': Handshake.decodeHexString(serverSecretKey)
+      }
+    }
+    else {
+      self.keypair = Handshake.createKeypair();
+      self.publicKey = Handshake.stringify(self.keypair.publicKey);
+    }
+    
+    console.log('>> Server : Public key: ', Handshake.stringify(self.keypair.publicKey));
+    console.log('>> Server : Secret key: ', Handshake.stringify(self.keypair.secretKey));
     //console.log('>> Server : Public key: ', self.service.bob.publicKey);
     console.log('>> Server : Handshake service created');
     
@@ -172,7 +184,17 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     var log = argv['log'];
     var secured = argv['secured'];
     var userPublicKey = argv['userPublicKey'];
+    
+    var serverPublicKey = argv['serverPublicKey'];
+    var serverSecretKey = argv['serverSecretKey'];
+    
+    var persisted = argv['persisted'];
+    
     var serverBootStatus = '';
+    
+    if (!persisted) {
+      self.annotate.reset();
+    }
     
     console.log('client = ', client);
 
@@ -192,8 +214,8 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     //FIXME: pass in bob's public key!
     self.secured = secured;
     if (secured) {
-        self.userPublicKey = userPublicKey;
-        self.handshakeService();
+        self.userPublicKey = userPublicKey; //for Internet mode!
+        self.handshakeService(serverPublicKey, serverSecretKey);
         serverBootStatus += '>> Server: Secured mode is On \n';
     }
     else {
