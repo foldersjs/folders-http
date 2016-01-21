@@ -302,10 +302,10 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         console.log(serverBootStatus);
     });
     
-    server.on('connection', function(socket) {
-        // 10 minutes timeout. Change this as you see fit. default 2 minutes in Node.
-        socket.setTimeout(600 * 1000);
-    })
+    //    server.on('connection', function(socket) {
+    //        Change this as you see fit. default 2 minutes in Node.
+    //        socket.setTimeout(120 * 1000);
+    //    })
 };
 
 
@@ -793,6 +793,9 @@ standaloneServer.prototype.routerDebug = function () {
           'Connection': 'keep-alive'
         });
 
+        //set the timeout for event-stream socket. default 120 seconds is not enough.
+        req.socket.setTimeout(0x7FFFFFFF);
+
         // send a stub keep-alive message
         stub = stubApp.getStubJson();
         res.write("data: " + JSON.stringify(stub) + '\n\n');
@@ -804,11 +807,11 @@ standaloneServer.prototype.routerDebug = function () {
         // connections.push(res);
         // NOTES use the res.write() to continue send message to client when have new message.
 
-        // Example sending keep-alive message intervals.
-        setInterval(function() {
-            var data = stubApp.getStubJson();
-            res.write("data: " + JSON.stringify(data) + '\n\n');
-        }, 300*1000);
+        //// Example sending keep-alive message intervals.
+        // setInterval(function() {
+        // var data = stubApp.getStubJson();
+        // res.write("data: " + JSON.stringify(data) + '\n\n');
+        // }, 300*1000);
 
       }else{
 
