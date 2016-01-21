@@ -779,12 +779,23 @@ standaloneServer.prototype.routerDebug = function () {
         next();
     });
 
+    // Event source
     app.get('/json', function (req, res, next) {
-        stub = stubApp.getStubJson();
-        next();
+        // send the response header,
+        res.setHeader('Content-type', 'text/event-stream');
+        res.writeHead(200);
 
+        // send a simple a stub message
+        stub = stubApp.getStubJson();
+        res.write(JSON.stringify(stub));
+
+        // keep the connection alive.
+        // NOTES use the res.write() to continue send message to client when have new message.
+        // may bind to some events.
+        // next();
     });
 
+    // Long pull
     app.get('/signal_poll', function (req, res, next) {
 
         stub = stubApp.getStubSignalPoll();
