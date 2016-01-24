@@ -118,7 +118,7 @@ standaloneServer.prototype.mountInstance = function (cb,clientUri) {
 	var localhost = addresses.length >= 1 ? addresses[0]:self.host;
 	console.log('localhost = ', localhost);
 	
-    if (self.clientUri) {
+    //if (self.clientUri) {
 		
         publicIp.v4(function (err, ip) {
 
@@ -162,12 +162,13 @@ standaloneServer.prototype.mountInstance = function (cb,clientUri) {
 
         });
 
-
+    /*
     } else {
         console.log('clientUri not defined, running Intranet mode');
         
         return cb();
     }
+    */
 };
 
 standaloneServer.prototype.configureAndStart = function (argv) {
@@ -187,6 +188,8 @@ standaloneServer.prototype.configureAndStart = function (argv) {
     
     var serverPublicKey = argv['serverPublicKey'];
     var serverSecretKey = argv['serverSecretKey'];
+    
+    self.instanceName = argv['instanceName'];
     
     var persisted = argv['persisted'];
     
@@ -298,6 +301,10 @@ standaloneServer.prototype.configureAndStart = function (argv) {
 
         self.host = server.address().address;
         self.port = server.address().port;
+        
+        if (!self.instanceName) {
+          self.instanceName = self.host + ':' + self.port
+        }
         serverBootStatus = '>> API Server : Listening at http://' + self.host + ":" + self.port + '\n' + serverBootStatus;
         console.log(serverBootStatus);
     });
@@ -822,6 +829,7 @@ standaloneServer.prototype.routerDebug = function () {
           "instance_id": instanceId,
           "mount_ip": "0.0.0.0",
           "mount_port": self.port,//"9999",
+          "mount_name": self.instanceName,
           "user_name": null,
           "bytes_in": 0, "bytes_out": 0,
           "files": null,
