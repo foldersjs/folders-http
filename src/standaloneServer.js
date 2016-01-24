@@ -309,7 +309,10 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         console.log(serverBootStatus);
     });
     
-
+    //    server.on('connection', function(socket) {
+    //        Change this as you see fit. default 2 minutes in Node.
+    //        socket.setTimeout(120 * 1000);
+    //    })
 };
 
 
@@ -786,12 +789,46 @@ standaloneServer.prototype.routerDebug = function () {
         next();
     });
 
+    // Event source
     app.get('/json', function (req, res, next) {
+
+      if (req.headers.accept && req.headers.accept == 'text/event-stream') {
+        // send the event-stream response header,
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream;charset=UTF-8',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+
+        //set the timeout for event-stream socket. default 120 seconds is not enough.
+        req.socket.setTimeout(0x7FFFFFFF);
+
+        // send a stub keep-alive message
         stub = stubApp.getStubJson();
-        next();
+        res.write("data: " + JSON.stringify(stub) + '\n\n');
+
+        // keep the connection alive.
+        // next();
+
+        // NOTES cache their connection
+        // connections.push(res);
+        // NOTES use the res.write() to continue send message to client when have new message.
+
+        //// Example sending keep-alive message intervals.
+        // setInterval(function() {
+        // var data = stubApp.getStubJson();
+        // res.write("data: " + JSON.stringify(data) + '\n\n');
+        // }, 300*1000);
+
+      }else{
+
+        stub = stubApp.getStubJson();
+        res.status(200).end(stub);
+      }
 
     });
 
+    // Long pull
     app.get('/signal_poll', function (req, res, next) {
 
         stub = stubApp.getStubSignalPoll();
