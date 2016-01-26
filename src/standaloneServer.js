@@ -37,6 +37,7 @@ var stats = {
 var Handshake = require('folders/src/handshake.js');
 var Qs = require('qs');
 var mime = require('mime');
+var LocalFio = require('folders/src/folders-local.js')
 
 var HandshakeService = Handshake.HandshakeService;
 
@@ -45,6 +46,15 @@ var standaloneServer = function (argv, backend) {
     // a single static backend.
     this.backend = backend;
     this.annotate = new Annotation();
+    //console.log(LocalFio);
+    this.shadow = new LocalFio(); //create a shadow file system
+    //console.log('shadow: ', this.shadow);
+    /*
+    this.shadow.ls('.', function(results) {
+      for (var id in results) {
+          console.log(results[id]);
+      } 
+    });*/
     //this.annotate.reset(); //reset path on DB
     
     //FIXME
@@ -584,6 +594,47 @@ standaloneServer.prototype.routerDebug = function () {
           })
         })
     });
+    
+    ///New API, allow user to add new attachment to a given path!
+    ///We will write the file to a shadow file system
+    app.post('/attach', function(req, res) {
+        var path = req.query.path || '';
+        console.log('attachment request @', path);
+        
+        //generate a random filename to save to
+        var fileName = 'random.txt';
+        var uri = 'tmp/random.txt';
+        
+        //save the file to shadow file system
+        self.shadow.write(uri, req, function (err) {
+            if (err) {
+                res.status(500).send({
+                    error: err
+                });
+            } else {
+                //mark the database!
+                
+                
+                res.status(200).json({
+                    'success': true
+                });
+            }
+        });
+        
+        
+        
+        //update database record of the attachment
+        /*
+        res.status(200).json({
+          "success": true
+        });
+        */
+    });
+    
+    ///Allow user to query attachments of a given path!
+    app.get('/attachments', function(req, res) {
+        
+    });
   
     app.post('/signin', function (req, res) {
 
@@ -614,7 +665,7 @@ standaloneServer.prototype.routerDebug = function () {
 
 
     app.post('/manually_upload_file', function (req, res) {
-      console.log('POST cmd');
+        //console.log('POST cmd');
         var shareId = req.query.shareId;
         var fileId = req.query.fileId;
         var match = "web everything:web network:" + shareId + "/";
@@ -628,12 +679,9 @@ standaloneServer.prototype.routerDebug = function () {
             backend.write(path, req, function (err) {
 
                 if (err) {
-
-
                     res.status(500).send({
                         error: err
                     });
-
                 } else {
                     stats.bytes_in += size;
                     stats.files.push({
