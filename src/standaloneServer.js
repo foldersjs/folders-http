@@ -499,11 +499,25 @@ standaloneServer.prototype.routerDebug = function () {
         var shareId = req.params.shareId;
         // No extra slash at end of path in case of files
         // should be taken care at module itself 
+        var offset = req.query.offset;
+        var length = req.query.length;
         var path = req.params[0];
+
+        var catParam = path;
+        if (typeof(offset) != 'undefined' || typeof(length) != 'undefined'){
+            // range cat when provider support
+            if (( backend.features && backend.features.range_cat) // for single provider
+        	    || backend.feature(path, 'range_cat') ) { // for union provider
+            catParam = {
+                path : path,
+                offset : offset,
+                length : length
+            };
+          }
+        }
+
         stub = function () {
-
-
-            backend.cat(path, function (err, result) {
+            backend.cat(catParam, function (err, result) {
 
                 if (err) {
 
