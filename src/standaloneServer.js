@@ -13,11 +13,12 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var request = require('request');
-var publicIp = require('public-ip');
+//var publicIp = require('public-ip');
 var compression = require('compression');
 var stubApp = require('./app/stubApp');
 var app = express();
 var Annotation = require('./annotate');
+
 
 //Allow CORS when withCredentials = true in client
 //https://github.com/expressjs/cors
@@ -38,6 +39,7 @@ var Handshake = require('folders/src/handshake.js');
 var Qs = require('qs');
 var mime = require('mime');
 var LocalFio = require('folders/src/folders-local.js')
+var helpers = require('folders/src/util/helpers.js')
 
 var HandshakeService = Handshake.HandshakeService;
 
@@ -47,7 +49,7 @@ var standaloneServer = function (argv, backend) {
     this.backend = backend;
     this.annotate = new Annotation();
     //console.log(LocalFio);
-    this.shadow = new LocalFio(); //create a shadow file system
+    this.shadowFS = new LocalFio(); //create a shadow file system
     //console.log('shadow: ', this.shadow);
     /*
     this.shadow.ls('.', function(results) {
@@ -293,6 +295,7 @@ standaloneServer.prototype.configureAndStart = function (argv) {
         });
     }
     */
+    
 
     if ('DEBUG' != mode.toUpperCase()) {
 
@@ -472,8 +475,37 @@ standaloneServer.prototype.routerDebug = function () {
           var path = req.params[0] + '/';
           stub = function () {
               backend.ls(path, function (err, data) {
-                  var stub = data;
-                  res.status(200).json(stub);
+                  //FIXME: should return annotation & attachments info here as wel!?
+                  //FIXME: check error!
+                  
+                  //add in filter (starred) information for the data?
+                  
+                  //FIXME: replace by using instanceId, also to remove your network
+                  var full_path = '/Your network/' + self.instanceName +  path.substring(0, path.length -1); //Note: no extra slash!
+                  
+                  console.log('getting filter @', full_path);
+                  
+                  annotate.getFilter(full_path, function(err, filter) {
+                    if (err) {
+                      console.log('get filter error: ', err);
+                    }
+                    else {
+                      console.log('filter: ', filter);
+                    }
+                    var stub = data;
+                    if (filter!='') {
+                      var starred = JSON.parse(filter).starred;
+                      console.log('starred:', starred);
+                      for (ind in stub) {
+                          console.log('f: ', stub[ind]);
+                          if (starred.indexOf(stub[ind].name) >= 0) {
+                            console.log('STARRED!');
+                            stub[ind].starred = true;
+                          }
+                      }
+                    }
+                    res.status(200).json(stub);
+                  })
               });
           }
         }
@@ -602,22 +634,44 @@ standaloneServer.prototype.routerDebug = function () {
         console.log('attachment request @', path);
         
         //generate a random filename to save to
-        var fileName = 'random.txt';
-        var uri = 'tmp/random.txt';
+        //var fileName = helpers.getTmpFilename();
+        
+        //oops, why all the headers become low-case?!
+        var orgFileName = req.headers['x-file-name'];
+        var fileSize = req.headers['x-file-size'];
+        var fileModifiedDate = req.headers['x-file-date'];
+        
+        console.log('headers: ', req.headers);
+        
+        
+        console.log('file info', orgFileName, fileSize, fileModifiedDate);
+        
+        //var uri = 'tmp/random.tmp';
+        var save_path = 'tmp/' + helpers.getTmpFilename();
+        
+        console.log('save path: ', save_path);
         
         //save the file to shadow file system
-        self.shadow.write(uri, req, function (err) {
+        self.shadowFS.write(save_path, req, function (err) {
             if (err) {
                 res.status(500).send({
                     error: err
                 });
             } else {
                 //mark the database!
-                
-                
-                res.status(200).json({
-                    'success': true
-                });
+                annotate.addAttachment(path, orgFileName, fileSize, fileModifiedDate, save_path, function(err) {
+                  if (err) {
+                    console.log('failed to update database', err);
+                    res.status(500).send({
+                        error: err
+                    });
+                  }
+                  else {
+                    res.status(200).json({
+                      'success': true
+                    });
+                  }
+                })
             }
         });
         
@@ -631,10 +685,90 @@ standaloneServer.prototype.routerDebug = function () {
         */
     });
     
-    ///Allow user to query attachments of a given path!
+    ///Allow user to query attachments on a given path!
     app.get('/attachments', function(req, res) {
-        
+        var path = req.query.path;
+        console.log('/attachments', path);
+        if (path == ''){
+            //console.log('path not DEFINED');
+            res.status(200).json({
+                  error: 'Path not defined!'
+            });
+            return;
+        }
+        annotate.getAttachments(path, function(err, files) {
+          console.log('records: ', files)
+          res.status(200).json({
+            "success": true,
+            "files": files
+          })
+        });
     });
+    
+    
+    ///When user wants to download an attachment
+    app.get('/get_attachment', function(req, res, next) {
+        //var saved_path = req.params[0];
+        console.log('attachments download request');
+        var saved_path = req.query.saved_path;
+        console.log('saved_path: ', saved_path);
+        stub = function () {
+          self.shadowFS.cat(saved_path, function (err, result) {
+              if (err) {
+                  res.status(500).send({
+                      error: err
+                  });
+  
+              } else {
+                  console.log('file found: ', result);
+                  res.setHeader('X-File-Name', result.name);
+                  res.setHeader('X-File-Size', result.size);
+                  res.setHeader('Content-Length', result.size);
+                  res.setHeader('Content-disposition', 'attachment; filename=' + result.name);
+                  res.setHeader('Content-type', mime.lookup(result.name));
+                  //NOTES, sent header first.
+                  //some src stream will overrider the content-type, content-length when pipe
+                  res.writeHead(200);
+  
+                  result.stream.pipe(res);
+              }
+  
+          });
+      }
+      next();
+    })
+    
+    /* set file filters at a given location! */
+    app.post('/set_filter', function(req, res) {
+      
+      var path = req.body.path || '';
+      var files = req.body.files || [];
+      
+      var filter = JSON.stringify({'starred': files});
+      
+      console.log('set_filter request: ', path, filter);
+      console.log('starred files count: ', files.length);
+      if (path == ''){
+          
+          res.status(200).send({
+                error: 'Path not defined!'
+          });
+          return;
+      }
+      annotate.setFilter(path, filter, function(err) {
+        if (err) {
+          res.status(200).send({
+              error: err
+          });
+        }
+        else {
+          res.status(200).json({
+            "success": true
+          });
+        };
+      });
+    });
+    
   
     app.post('/signin', function (req, res) {
 
