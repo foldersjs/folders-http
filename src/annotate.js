@@ -117,6 +117,23 @@ var Annotation = function() {
         });
     }
     
+    /* Since the filename on the shadow file system is coded, use this to retrieve the origninal file name (and maybe modifiedDate, etc.) */
+    /* This should return only one attachment file */
+    var getAttachmentBySavedPath = function(saved_path, cb) {
+        console.log('getAttachmentBySavedPath ', saved_path);
+        db.all("SELECT * FROM attachments WHERE saved_path=?", saved_path, function(err, rows) {
+            if (typeof(cb)!='undefined') {
+                if (!err && rows.length > 0) {
+                    cb(err, rows[0]);
+                }
+                else {
+                    cb(err, null); //File not found or something!
+                }
+                
+            }
+        });
+    }
+    
     //for testing!
     var browse = function() {
         console.log('Existing attachments:')
@@ -141,12 +158,15 @@ var Annotation = function() {
     this.addAttachment = addAttachment;
     this.getAttachments = getAttachments;
     
+    this.getAttachmentBySavedPath = getAttachmentBySavedPath;
+    
     this.setFilter = setFilter;
     this.getFilter = getFilter;
     
     this.browse = browse;
     this.close = close;
     this.serialize = serialize;
+    
     
 }
 
