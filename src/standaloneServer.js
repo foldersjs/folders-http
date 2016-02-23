@@ -470,9 +470,20 @@ standaloneServer.prototype.routerDebug = function () {
           //code
         
           var shareId = req.params.shareId;
+          
+          //extra check if shareId matches with the instanceId for security
+          /*
+          if (shareId!=self.instanceId) {
+            console.log('invalid shareId: ', shareId);
+            res.status(401).send();
+            return;
+          }
+          */
+        
           // FIXME : appending of extra slash at end of path should be taken
           // care at backend itself 
           var path = req.params[0] + '/';
+          var path_no_slash = req.params[0];
           stub = function () {
               backend.ls(path, function (err, data) {
                   //FIXME: should return annotation & attachments info here as wel!?
@@ -481,11 +492,12 @@ standaloneServer.prototype.routerDebug = function () {
                   //add in filter (starred) information for the data?
                   
                   //FIXME: replace by using instanceId, also to remove your network
-                  var full_path = '/Your network/' + self.instanceName +  path.substring(0, path.length -1); //Note: no extra slash!
+                  //var full_path = self.instanceName +  path.substring(0, path.length -1); //Note: no extra slash!
+                  var annotationPath = self.instanceId + '/' + path_no_slash;
                   
-                  console.log('getting filter @', full_path);
+                  console.log('getting filter @', annotationPath);
                   
-                  annotate.getFilter(full_path, function(err, filter) {
+                  annotate.getFilter(annotationPath, function(err, filter) {
                     if (err) {
                       console.log('get filter error: ', err);
                     }
@@ -516,6 +528,15 @@ standaloneServer.prototype.routerDebug = function () {
     app.get('/dir/:shareId', function (req, res, next) {
         var shareId = req.params.shareId;
         var path = '/';
+        
+        //extra check if shareId matches with the instanceId for security
+        /*
+        if (shareId!=self.instanceId) {
+          console.log('invalid shareId: ', shareId);
+          res.status(401).send();
+          return;
+        }
+        */
 
         stub = function () {
             backend.ls(path, function (err, data) {
@@ -681,8 +702,14 @@ standaloneServer.prototype.routerDebug = function () {
                     });
                   }
                   else {
-                    res.status(200).json({
-                      'success': true
+                    //return the updated attachment list so we can perform a refresh!
+                    annotate.getAttachments(path, function(err, files) {
+                      console.log('records: ', files)
+                      files = files || [];
+                      res.status(200).json({
+                        "success": true,
+                        "files": files
+                      })
                     });
                   }
                 })
@@ -722,31 +749,43 @@ standaloneServer.prototype.routerDebug = function () {
     
     ///When user wants to download an attachment
     app.get('/get_attachment', function(req, res, next) {
+        //FIXME: use promise interface for cleaner
         //var saved_path = req.params[0];
         console.log('attachments download request');
         var saved_path = req.query.saved_path;
         console.log('saved_path: ', saved_path);
         stub = function () {
-          self.shadowFS.cat(saved_path, function (err, result) {
-              if (err) {
-                  res.status(500).send({
-                      error: err
-                  });
-  
-              } else {
-                  console.log('file found: ', result);
-                  res.setHeader('X-File-Name', result.name);
-                  res.setHeader('X-File-Size', result.size);
-                  res.setHeader('Content-Length', result.size);
-                  res.setHeader('Content-disposition', 'attachment; filename=' + result.name);
-                  res.setHeader('Content-type', mime.lookup(result.name));
-                  //NOTES, sent header first.
-                  //some src stream will overrider the content-type, content-length when pipe
-                  res.writeHead(200);
-  
-                  result.stream.pipe(res);
-              }
-  
+          //FIXME: check again with DB first!
+          annotate.getAttachmentBySavedPath(saved_path, function(err, file) {
+            if (!err) {
+              self.shadowFS.cat(saved_path, function (err, result) {
+                if (err) {
+                    res.status(500).send({
+                        error: err
+                    });
+    
+                } else {
+                    console.log('file found: ', file.file_name, result.size);
+                    res.setHeader('X-File-Name', file.file_name); //use original file name
+                    //res.setHeader('X-File-Name', 'abc.jpg');
+                    res.setHeader('X-File-Size', result.size);
+                    res.setHeader('Content-Length', result.size);
+                    res.setHeader('Content-disposition', 'attachment; filename=' + file.file_name);
+                    console.log('content type: ', mime.lookup(result.name));
+                    res.setHeader('Content-type', mime.lookup(result.name));
+                    //NOTES, sent header first.
+                    //some src stream will overrider the content-type, content-length when pipe
+                    res.writeHead(200);
+    
+                    result.stream.pipe(res);
+                }
+              });
+            }
+            else {
+              res.status(500).send( {
+                error : err
+              });
+            }
           });
       }
       next();
